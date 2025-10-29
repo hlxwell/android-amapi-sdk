@@ -1,0 +1,64 @@
+# 编译输出
+build/
+dist/
+amapi-cli
+amapi-demo
+amapi-simple
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试二进制文件
+*.test
+*.out
+
+# Go 工作区文件
+go.work
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 敏感配置文件
+sa-key.json
+*-sa-key.json
+service-account*.json
+!sa-key.json.example
+
+# 配置文件
+amapi.yaml
+amapi.yml
+amapi.json
+config.yaml
+config.yml
+config.json
+!config.yaml.example
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 发布文件
+dist/
+release/
+build/
+

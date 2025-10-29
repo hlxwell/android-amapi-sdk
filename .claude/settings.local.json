@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go build:*)",
+      "Bash(go get:*)",
+      "Bash(go run:*)",
+      "Bash(find:*)",
+      "Bash(./amapi-simple:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

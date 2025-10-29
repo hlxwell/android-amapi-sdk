@@ -1,0 +1,35 @@
+# Android Management API 配置文件示例
+# 将此文件复制为 amapi.yaml 并填写你的实际配置
+
+# Google Cloud 配置
+project_id: "your-project-id"                    # 你的 Google Cloud 项目 ID
+credentials_file: "/path/to/service-account.json" # 服务账号密钥文件路径
+
+# 可选：直接提供 JSON 凭证内容（不推荐用于生产环境）
+# credentials_json: |
+#   {
+#     "type": "service_account",
+#     "project_id": "your-project",
+#     ...
+#   }
+
+# API 配置
+timeout: 30s              # API 请求超时时间
+retry_attempts: 3         # 失败重试次数
+retry_delay: 1s          # 重试间隔时间
+enable_retry: true       # 是否启用自动重试
+
+# 回调配置（可选）
+callback_url: "https://your-domain.com/webhook"  # 企业注册回调 URL
+
+# 缓存配置（可选）
+enable_cache: true       # 启用缓存
+cache_ttl: 5m           # 缓存生存时间
+
+# 日志配置
+log_level: "info"        # 日志级别: debug, info, warn, error
+enable_debug_logging: false  # 启用调试日志
+
+# 速率限制配置
+rate_limit: 100          # 每分钟请求限制
+rate_burst: 10           # 突发请求容量
