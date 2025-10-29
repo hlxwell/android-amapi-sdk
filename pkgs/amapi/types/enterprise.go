@@ -98,6 +98,42 @@ type SignupURLRequest struct {
 	Locale string `json:"locale,omitempty"`
 }
 
+// EnterpriseUpgradeURL represents an enterprise upgrade URL.
+type EnterpriseUpgradeURL struct {
+	// URL is the upgrade URL
+	URL string `json:"url"`
+
+	// EnterpriseName is the enterprise this URL is for
+	EnterpriseName string `json:"enterprise_name"`
+
+	// ProjectID is the Google Cloud project ID
+	ProjectID string `json:"project_id"`
+
+	// CreatedAt timestamp
+	CreatedAt time.Time `json:"created_at"`
+
+	// ExpiresAt indicates when the upgrade URL expires
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+}
+
+// EnterpriseUpgradeURLRequest represents a request to generate an enterprise upgrade URL.
+type EnterpriseUpgradeURLRequest struct {
+	// EnterpriseName is the enterprise to generate the upgrade URL for
+	EnterpriseName string `json:"enterprise_name"`
+
+	// ProjectID is the Google Cloud project ID
+	ProjectID string `json:"project_id"`
+
+	// CallbackURL is the URL to redirect to after upgrade
+	CallbackURL string `json:"callback_url,omitempty"`
+
+	// AdminEmail is the email of the admin user
+	AdminEmail string `json:"admin_email,omitempty"`
+
+	// Locale for the upgrade process
+	Locale string `json:"locale,omitempty"`
+}
+
 // EnterpriseCreateRequest represents a request to create an enterprise.
 type EnterpriseCreateRequest struct {
 	// SignupToken from the signup completion

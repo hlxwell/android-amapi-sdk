@@ -442,3 +442,30 @@ func (es *EnterpriseService) GetApplication(enterpriseName string, packageName s
 
 	return result, nil
 }
+
+// GenerateEnterpriseUpgradeURL generates an upgrade URL for an existing enterprise.
+// Note: This method is a placeholder as the actual API method may not be available
+func (es *EnterpriseService) GenerateEnterpriseUpgradeURL(req *types.EnterpriseUpgradeURLRequest) (*types.EnterpriseUpgradeURL, error) {
+	if req == nil {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise upgrade URL request is required")
+	}
+
+	if req.EnterpriseName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
+	}
+
+	if req.ProjectID == "" {
+		req.ProjectID = es.client.config.ProjectID
+	}
+
+	// For now, return a placeholder URL
+	// In a real implementation, this would call the actual API
+	upgradeURL := &types.EnterpriseUpgradeURL{
+		URL:            "https://play.google.com/console/developers/upgrade?project=" + req.ProjectID,
+		EnterpriseName: req.EnterpriseName,
+		ProjectID:      req.ProjectID,
+		CreatedAt:      time.Now(),
+	}
+
+	return upgradeURL, nil
+}

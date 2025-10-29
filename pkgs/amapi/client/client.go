@@ -369,3 +369,33 @@ func parseEnrollmentTokenName(tokenName string) (string, string, error) {
 	}
 	return components[1], components[3], nil
 }
+
+// parseMigrationTokenName extracts enterprise and token IDs from a migration token resource name.
+func parseMigrationTokenName(tokenName string) (string, string, error) {
+	components := parseResourceName(tokenName)
+	if len(components) != 4 || components[0] != "enterprises" || components[2] != "migrationTokens" {
+		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+			"invalid migration token name format", "expected format: enterprises/{enterpriseId}/migrationTokens/{tokenId}")
+	}
+	return components[1], components[3], nil
+}
+
+// parseWebAppName extracts enterprise and web app IDs from a web app resource name.
+func parseWebAppName(webAppName string) (string, string, error) {
+	components := parseResourceName(webAppName)
+	if len(components) != 4 || components[0] != "enterprises" || components[2] != "webApps" {
+		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+			"invalid web app name format", "expected format: enterprises/{enterpriseId}/webApps/{webAppId}")
+	}
+	return components[1], components[3], nil
+}
+
+// parseWebTokenName extracts enterprise and token IDs from a web token resource name.
+func parseWebTokenName(tokenName string) (string, string, error) {
+	components := parseResourceName(tokenName)
+	if len(components) != 4 || components[0] != "enterprises" || components[2] != "webTokens" {
+		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+			"invalid web token name format", "expected format: enterprises/{enterpriseId}/webTokens/{tokenId}")
+	}
+	return components[1], components[3], nil
+}
