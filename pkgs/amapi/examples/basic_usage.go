@@ -1,5 +1,5 @@
 // Package examples demonstrates basic usage of the amapi client.
-package main
+package examples
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"amapi-pkg/pkgs/amapi/types"
 )
 
-func main() {
+// BasicUsageExample demonstrates basic usage patterns of the AMAPI client.
+func BasicUsageExample() {
 	// Example 1: Basic client setup
 	basicSetup()
 

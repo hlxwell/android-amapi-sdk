@@ -221,7 +221,8 @@ go doc config.Config
 
 **使用方法**:
 ```bash
-./generate_docs.sh     # 验证代码并启动 godoc
+# 从项目根目录运行
+./scripts/generate_docs.sh     # 验证代码并启动 godoc
 ```
 
 ## 🌟 推荐的使用方式

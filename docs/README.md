@@ -11,6 +11,11 @@
   - 快速安装
   - 基本使用示例
 
+- **[AMAPI 快速开始](AMAPI_快速开始.md)** - AMAPI SDK 快速上手指南
+  - SDK 配置
+  - 基本操作
+  - 示例代码
+
 ### 🔨 开发指南
 
 - **[构建指南](BUILD_GUIDE.md)** - 如何构建和部署项目
@@ -29,6 +34,19 @@
   - API 参考
   - 代码示例
   - 高级用法
+
+- **[AMAPI 文档完成总结](AMAPI_文档完成总结.md)** - AMAPI SDK 文档完整性报告
+  - 文档覆盖率
+  - 完成的功能
+  - 使用说明
+
+### 📁 项目结构
+
+- **[项目结构说明](PROJECT_STRUCTURE.md)** - 完整的项目目录结构和规范
+  - 目录说明
+  - 文件组织
+  - 命名规范
+  - 最佳实践
 
 ### 🔐 安全相关
 
@@ -56,6 +74,8 @@
 
 - [返回主页](../README.md)
 - [配置示例](../config.yaml.example)
+- [Terraform 配置](../terraform/README.md)
+- [脚本工具](../scripts/README.md)
 - [问题反馈](https://github.com/hlxwell/android-api-demo/issues)
 
 ## 📖 阅读顺序建议

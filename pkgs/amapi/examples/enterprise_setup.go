@@ -1,5 +1,5 @@
 // Package examples demonstrates complete enterprise setup workflow.
-package main
+package examples
 
 import (
 	"fmt"
@@ -12,7 +12,8 @@ import (
 	"amapi-pkg/pkgs/amapi/types"
 )
 
-func main() {
+// EnterpriseSetupExample demonstrates the complete enterprise setup workflow.
+func EnterpriseSetupExample() {
 	// Complete enterprise setup workflow
 	enterpriseSetupWorkflow()
 }
@@ -61,7 +62,7 @@ func enterpriseSetupWorkflow() {
 	}
 
 	// Step 4: Configure enterprise settings
-	configureEnterprise(c, enterprise)
+	configureEnterprise(c, cfg, enterprise)
 
 	// Step 5: Create policies for different device types
 	policies := createPolicies(c, enterprise.GetID())
@@ -99,7 +100,7 @@ func generateSignupURL(c *client.Client, cfg *config.Config) *types.EnterpriseSi
 }
 
 // configureEnterprise sets up enterprise-level settings.
-func configureEnterprise(c *client.Client, enterprise *types.Enterprise) {
+func configureEnterprise(c *client.Client, cfg *config.Config, enterprise *types.Enterprise) {
 	fmt.Println("\n--- Step 2: Configure Enterprise Settings ---")
 
 	// Enable notifications
@@ -119,7 +120,7 @@ func configureEnterprise(c *client.Client, enterprise *types.Enterprise) {
 
 	// Configure Pub/Sub topic (if available)
 	if enterprise.PubsubTopic == "" {
-		topicName := fmt.Sprintf("projects/%s/topics/amapi-events", enterprise.GetEnterpriseID())
+		topicName := fmt.Sprintf("projects/%s/topics/amapi-events", cfg.ProjectID)
 		_, err := c.Enterprises().SetPubSubTopic(enterprise.Name, topicName)
 		if err != nil {
 			log.Printf("Failed to set Pub/Sub topic: %v", err)
@@ -333,6 +334,8 @@ func createEnrollmentTokens(c *client.Client, enterpriseID string, policies []*t
 			log.Printf("Failed to generate QR code: %v", err)
 		} else {
 			fmt.Printf("  ✓ QR code generated for %s\n", token.GetID())
+			// QR code data is available in qrData for further processing
+			_ = qrData // Suppress unused variable warning
 		}
 
 		tokens = append(tokens, token)

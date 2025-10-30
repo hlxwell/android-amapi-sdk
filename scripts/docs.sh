@@ -15,8 +15,12 @@ echo -e "${BLUE}   AMAPI SDK 文档${NC}"
 echo -e "${BLUE}=========================================${NC}"
 echo ""
 
-# 进入包目录
-cd "$(dirname "$0")"
+# 获取脚本所在目录和项目根目录
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+# 进入 AMAPI 包目录
+cd "$PROJECT_ROOT/pkgs/amapi"
 
 # 选项1: 显示包文档
 if [ "$1" == "show" ] || [ "$1" == "" ]; then
@@ -73,7 +77,7 @@ if [ "$1" == "serve" ]; then
         echo ""
 
         # 切换到项目根目录
-        cd ../../..
+        cd "$PROJECT_ROOT"
         godoc -http=:$PORT
     else
         echo -e "${YELLOW}❌ godoc 安装失败${NC}"

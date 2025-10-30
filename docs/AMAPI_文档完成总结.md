@@ -105,7 +105,7 @@
 
 #### generate_docs.sh - 文档生成脚本
 
-**位置**: `/Users/hlxwell/projects/amapi-pkg/pkgs/amapi/generate_docs.sh`
+**位置**: `/Users/hlxwell/projects/amapi-pkg/scripts/generate_docs.sh`
 
 **功能**:
 - 验证代码编译

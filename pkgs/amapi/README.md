@@ -1753,7 +1753,7 @@ go doc config.Config
 - `README.md` - SDK 完整使用文档（本文件）
 - `GODOC.md` - GoDoc 文档查看指南
 - `docs.sh` - 文档查看便捷脚本
-- `generate_docs.sh` - 文档生成脚本
+- 文档生成脚本已移至 `/scripts/generate_docs.sh`
 
 ## 支持与反馈
 

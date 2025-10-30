@@ -17,7 +17,10 @@ echo ""
 
 # 获取脚本所在目录
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+# 切换到 AMAPI 包目录进行验证
+cd "$PROJECT_ROOT/pkgs/amapi"
 
 # 验证代码
 echo "📦 验证代码编译..."
@@ -85,7 +88,7 @@ echo ""
 echo "按 Ctrl+C 停止服务器"
 echo ""
 
-# 启动 godoc 服务器
-cd ../../..
+# 启动 godoc 服务器（切换到项目根目录）
+cd "$PROJECT_ROOT"
 godoc -http=:6060
 
