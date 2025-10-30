@@ -29,8 +29,22 @@ func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*types.Web
 		return nil, err
 	}
 
-	// Create web token object
-	token := &androidmanagement.WebToken{}
+	// Create web token object with required parent field
+	parentFrameUrl := req.ParentFrameUrl
+	if parentFrameUrl == "" {
+		// Use a safe default if not specified
+		parentFrameUrl = "https://localhost"
+	}
+
+	token := &androidmanagement.WebToken{
+		ParentFrameUrl: parentFrameUrl,
+	}
+
+	// Set enabled features if provided (replaces deprecated permissions)
+	if len(req.EnabledFeatures) > 0 {
+		token.EnabledFeatures = req.EnabledFeatures
+	}
+	// Note: If EnabledFeatures is empty, all features are enabled by default
 
 	var result *androidmanagement.WebToken
 	var err error
@@ -58,6 +72,24 @@ func (wts *WebTokenService) CreateByEnterpriseID(enterpriseID string, duration t
 	req := &types.WebTokenCreateRequest{
 		EnterpriseName: enterpriseName,
 		Duration:       duration,
+	}
+
+	return wts.Create(req)
+}
+
+// CreateWithOptions creates a new web token with custom options.
+func (wts *WebTokenService) CreateWithOptions(enterpriseID string, duration time.Duration, parentFrameUrl string, enabledFeatures []string) (*types.WebToken, error) {
+	if err := validateEnterpriseID(enterpriseID); err != nil {
+		return nil, err
+	}
+
+	enterpriseName := buildEnterpriseName(enterpriseID)
+
+	req := &types.WebTokenCreateRequest{
+		EnterpriseName:  enterpriseName,
+		Duration:        duration,
+		ParentFrameUrl:  parentFrameUrl,
+		EnabledFeatures: enabledFeatures,
 	}
 
 	return wts.Create(req)
