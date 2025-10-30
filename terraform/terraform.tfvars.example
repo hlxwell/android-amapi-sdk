@@ -7,8 +7,9 @@ project_id = "your-project-id"
 # GCP 区域 (可选,默认: us-central1)
 region = "us-central1"
 
-# Pub/Sub Topic 名称 (可选,默认: amapi-events)
-topic_name = "amapi-events"
+# Pub/Sub Topic 名称前缀 (可选,默认: amapi-events)
+# 将会创建: {prefix}-cn 和 {prefix}-row
+topic_name_prefix = "amapi-events"
 
 # Service Account ID (可选,默认: amapi-service-account)
 service_account_id = "amapi-service-account"

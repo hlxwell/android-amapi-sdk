@@ -9,8 +9,8 @@ variable "region" {
   default     = "us-central1"
 }
 
-variable "topic_name" {
-  description = "Pub/Sub Topic 名称"
+variable "topic_name_prefix" {
+  description = "Pub/Sub Topic 名称前缀 (将会创建 {prefix}-cn 和 {prefix}-row)"
   type        = string
   default     = "amapi-events"
 }

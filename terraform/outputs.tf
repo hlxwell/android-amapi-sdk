@@ -3,24 +3,46 @@ output "project_id" {
   value       = var.project_id
 }
 
-output "amapi_topic_name" {
-  description = "AMAPI Pub/Sub Topic 名称"
-  value       = google_pubsub_topic.amapi_events.name
+# CN Topic 输出
+output "amapi_topic_cn_name" {
+  description = "AMAPI Pub/Sub Topic 名称 - CN"
+  value       = google_pubsub_topic.amapi_events_cn.name
 }
 
-output "amapi_topic_id" {
-  description = "AMAPI Pub/Sub Topic 完整 ID"
-  value       = google_pubsub_topic.amapi_events.id
+output "amapi_topic_cn_id" {
+  description = "AMAPI Pub/Sub Topic 完整 ID - CN"
+  value       = google_pubsub_topic.amapi_events_cn.id
 }
 
-output "amapi_deadletter_topic_name" {
-  description = "AMAPI Dead Letter Topic 名称"
-  value       = google_pubsub_topic.amapi_events_deadletter.name
+output "amapi_subscription_cn_name" {
+  description = "AMAPI Pub/Sub Subscription 名称 - CN"
+  value       = google_pubsub_subscription.amapi_events_cn_sub.name
 }
 
-output "amapi_subscription_name" {
-  description = "AMAPI Pub/Sub Subscription 名称"
-  value       = google_pubsub_subscription.amapi_events_sub.name
+output "amapi_deadletter_topic_cn_name" {
+  description = "AMAPI Dead Letter Topic 名称 - CN"
+  value       = google_pubsub_topic.amapi_events_cn_deadletter.name
+}
+
+# ROW Topic 输出
+output "amapi_topic_row_name" {
+  description = "AMAPI Pub/Sub Topic 名称 - ROW"
+  value       = google_pubsub_topic.amapi_events_row.name
+}
+
+output "amapi_topic_row_id" {
+  description = "AMAPI Pub/Sub Topic 完整 ID - ROW"
+  value       = google_pubsub_topic.amapi_events_row.id
+}
+
+output "amapi_subscription_row_name" {
+  description = "AMAPI Pub/Sub Subscription 名称 - ROW"
+  value       = google_pubsub_subscription.amapi_events_row_sub.name
+}
+
+output "amapi_deadletter_topic_row_name" {
+  description = "AMAPI Dead Letter Topic 名称 - ROW"
+  value       = google_pubsub_topic.amapi_events_row_deadletter.name
 }
 
 output "service_account_email" {
@@ -55,9 +77,15 @@ output "setup_instructions" {
     Android Management API Terraform 部署完成
     ========================================
 
-    1. Pub/Sub Topic: ${google_pubsub_topic.amapi_events.id}
-    2. Subscription: ${google_pubsub_subscription.amapi_events_sub.id}
-    3. Service Account: ${google_service_account.amapi_sa.email}
+    📍 CN 区域 (中国):
+    - Topic: ${google_pubsub_topic.amapi_events_cn.id}
+    - Subscription: ${google_pubsub_subscription.amapi_events_cn_sub.id}
+
+    🌍 ROW 区域 (世界其他地区):
+    - Topic: ${google_pubsub_topic.amapi_events_row.id}
+    - Subscription: ${google_pubsub_subscription.amapi_events_row_sub.id}
+
+    👤 Service Account: ${google_service_account.amapi_sa.email}
 
     下一步操作:
     -----------
@@ -67,15 +95,22 @@ output "setup_instructions" {
 
     2. 在您的应用配置中使用以下设置:
        - PROJECT_ID: ${var.project_id}
-       - TOPIC_NAME: ${google_pubsub_topic.amapi_events.name}
+       - TOPIC_CN: ${google_pubsub_topic.amapi_events_cn.name}
+       - TOPIC_ROW: ${google_pubsub_topic.amapi_events_row.name}
        - SERVICE_ACCOUNT: ${google_service_account.amapi_sa.email}
 
-    3. 测试 Pub/Sub:
-       gcloud pubsub topics publish ${google_pubsub_topic.amapi_events.name} \
-         --message="Test message"
+    3. 测试 Pub/Sub (CN):
+       gcloud pubsub topics publish ${google_pubsub_topic.amapi_events_cn.name} \
+         --message="Test message for CN"
 
-    4. 查看订阅消息:
-       gcloud pubsub subscriptions pull ${google_pubsub_subscription.amapi_events_sub.name} \
+       gcloud pubsub subscriptions pull ${google_pubsub_subscription.amapi_events_cn_sub.name} \
+         --auto-ack --limit=10
+
+    4. 测试 Pub/Sub (ROW):
+       gcloud pubsub topics publish ${google_pubsub_topic.amapi_events_row.name} \
+         --message="Test message for ROW"
+
+       gcloud pubsub subscriptions pull ${google_pubsub_subscription.amapi_events_row_sub.name} \
          --auto-ack --limit=10
   EOT
 }

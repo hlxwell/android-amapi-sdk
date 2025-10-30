@@ -2,6 +2,28 @@
 
 这个 Terraform 配置用于自动化部署 Android Management API 所需的 GCP 资源。
 
+## 🌏 双区域架构
+
+本配置采用**双区域 Topic 架构**,为不同地理区域的设备提供独立的事件处理通道:
+
+- **CN (China)** - 专门处理中国区域的 Android 设备事件
+- **ROW (Rest of World)** - 处理世界其他地区的 Android 设备事件
+
+### 为什么需要双区域?
+
+1. **性能优化**: 减少跨区域数据传输延迟
+2. **合规要求**: 满足不同地区的数据本地化要求
+3. **独立扩展**: 可以根据不同区域的负载独立调整资源
+4. **故障隔离**: 一个区域的问题不会影响另一个区域
+
+### Topic 命名
+
+默认会创建以下 Topics:
+- `amapi-events-cn` - 中国区域主 Topic
+- `amapi-events-cn-deadletter` - 中国区域失败消息处理
+- `amapi-events-row` - 世界其他地区主 Topic
+- `amapi-events-row-deadletter` - 世界其他地区失败消息处理
+
 ## 功能特性
 
 本 Terraform 配置会自动创建和配置以下资源:
@@ -11,10 +33,11 @@
 - ✅ Pub/Sub API (`pubsub.googleapis.com`)
 - ✅ IAM API (`iam.googleapis.com`)
 
-### 2. Pub/Sub 资源
-- 📨 **主 Topic**: `amapi-events` - 接收来自 Android Management API 的事件
-- 💀 **Dead Letter Topic**: `amapi-events-deadletter` - 处理失败的消息
-- 📬 **订阅**: 自动创建订阅,配置重试策略和 Dead Letter 队列
+### 2. Pub/Sub 资源（双区域架构）
+- 📨 **CN Topic**: `amapi-events-cn` - 接收中国区域的 Android Management API 事件
+- 🌍 **ROW Topic**: `amapi-events-row` - 接收世界其他地区的 Android Management API 事件
+- 💀 **Dead Letter Topics**: 为每个区域创建对应的 Dead Letter Topic
+- 📬 **订阅**: 为每个 Topic 自动创建订阅,配置重试策略和 Dead Letter 队列
 - ⏰ 消息保留时间: 7天
 - 🔄 自动重试配置: 最多 5 次,指数退避策略
 
@@ -96,7 +119,7 @@ terraform output
 |--------|------|--------|------|
 | `project_id` | string | - | **必填** GCP 项目 ID |
 | `region` | string | `us-central1` | GCP 区域 |
-| `topic_name` | string | `amapi-events` | Pub/Sub Topic 名称 |
+| `topic_name_prefix` | string | `amapi-events` | Pub/Sub Topic 名称前缀 (会创建 {prefix}-cn 和 {prefix}-row) |
 | `service_account_id` | string | `amapi-service-account` | Service Account ID |
 | `service_account_display_name` | string | `Android Management API Service Account` | Service Account 显示名称 |
 | `create_service_account_key` | bool | `false` | 是否创建 Service Account Key |
@@ -107,18 +130,18 @@ terraform output
 
 #### 基础配置 (推荐用于生产环境)
 ```hcl
-project_id = "enhancer-471605"
-region     = "us-central1"
-topic_name = "amapi-events"
+project_id         = "enhancer-471605"
+region             = "us-central1"
+topic_name_prefix  = "amapi-events"  # 将创建 amapi-events-cn 和 amapi-events-row
 ```
 
 #### 开发环境配置 (包含 Service Account Key)
 ```hcl
-project_id                 = "enhancer-471605"
-region                     = "us-central1"
-topic_name                 = "amapi-events"
-create_service_account_key = true
-save_key_to_file           = true
+project_id                   = "enhancer-471605"
+region                       = "us-central1"
+topic_name_prefix            = "amapi-events"
+create_service_account_key   = true
+save_key_to_file             = true
 service_account_key_filename = "sa-key.json"
 ```
 
@@ -138,9 +161,14 @@ terraform output setup_instructions
 
 ### 主要输出变量
 
+#### 区域资源
+- `amapi_topic_cn_id` - CN 区域 Pub/Sub Topic 完整 ID
+- `amapi_topic_row_id` - ROW 区域 Pub/Sub Topic 完整 ID
+- `amapi_subscription_cn_name` - CN 区域订阅名称
+- `amapi_subscription_row_name` - ROW 区域订阅名称
+
+#### 通用资源
 - `service_account_email` - Service Account 邮箱地址
-- `amapi_topic_id` - Pub/Sub Topic 完整 ID
-- `amapi_subscription_name` - Pub/Sub Subscription 名称
 - `setup_instructions` - 详细的后续步骤说明
 
 ## 与项目集成
@@ -154,8 +182,9 @@ terraform output setup_instructions
 project_id: "enhancer-471605"  # 使用 terraform output project_id
 credentials_file: "./sa-key.json"  # 如果创建了 Key
 
-# Pub/Sub 配置
-pubsub_topic: "projects/enhancer-471605/topics/amapi-events"  # 使用 terraform output amapi_topic_id
+# Pub/Sub 配置 - 根据区域选择对应的 Topic
+pubsub_topic_cn: "projects/enhancer-471605/topics/amapi-events-cn"   # CN 区域
+pubsub_topic_row: "projects/enhancer-471605/topics/amapi-events-row" # ROW 区域
 ```
 
 ### 手动下载 Service Account Key
@@ -176,22 +205,34 @@ cp sa-key.json ../sa-key.json
 
 ## 测试部署
 
-### 1. 测试 Pub/Sub Topic
+### 1. 测试 Pub/Sub Topic - CN 区域
 ```bash
-# 获取 Topic 名称
-TOPIC_NAME=$(terraform output -raw amapi_topic_name)
+# 获取 CN Topic 名称
+TOPIC_CN=$(terraform output -raw amapi_topic_cn_name)
 
 # 发布测试消息
-gcloud pubsub topics publish $TOPIC_NAME --message="Test message from Terraform"
-```
+gcloud pubsub topics publish $TOPIC_CN --message="Test message for CN region"
 
-### 2. 测试订阅
-```bash
-# 获取订阅名称
-SUB_NAME=$(terraform output -raw amapi_subscription_name)
+# 获取 CN 订阅名称
+SUB_CN=$(terraform output -raw amapi_subscription_cn_name)
 
 # 拉取消息
-gcloud pubsub subscriptions pull $SUB_NAME --auto-ack --limit=10
+gcloud pubsub subscriptions pull $SUB_CN --auto-ack --limit=10
+```
+
+### 2. 测试 Pub/Sub Topic - ROW 区域
+```bash
+# 获取 ROW Topic 名称
+TOPIC_ROW=$(terraform output -raw amapi_topic_row_name)
+
+# 发布测试消息
+gcloud pubsub topics publish $TOPIC_ROW --message="Test message for ROW region"
+
+# 获取 ROW 订阅名称
+SUB_ROW=$(terraform output -raw amapi_subscription_row_name)
+
+# 拉取消息
+gcloud pubsub subscriptions pull $SUB_ROW --auto-ack --limit=10
 ```
 
 ### 3. 测试 Service Account 权限

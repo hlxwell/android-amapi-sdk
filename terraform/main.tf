@@ -38,40 +38,74 @@ resource "google_project_service" "iam" {
   disable_on_destroy = false
 }
 
-# 2. 创建 AMAPI Pub/Sub Topic
-resource "google_pubsub_topic" "amapi_events" {
-  name    = var.topic_name
+# 2. 创建 AMAPI Pub/Sub Topics (CN 和 ROW 区域)
+# CN Topic - 中国区域
+resource "google_pubsub_topic" "amapi_events_cn" {
+  name    = "${var.topic_name_prefix}-cn"
   project = var.project_id
 
   message_retention_duration = "604800s" # 7 days
 
   labels = {
     purpose = "amapi-events"
+    region  = "cn"
     managed = "terraform"
   }
 
   depends_on = [google_project_service.pubsub]
 }
 
-# 创建 Dead Letter Topic (可选,用于处理失败的消息)
-resource "google_pubsub_topic" "amapi_events_deadletter" {
-  name    = "${var.topic_name}-deadletter"
+# ROW Topic - 世界其他地区
+resource "google_pubsub_topic" "amapi_events_row" {
+  name    = "${var.topic_name_prefix}-row"
+  project = var.project_id
+
+  message_retention_duration = "604800s" # 7 days
+
+  labels = {
+    purpose = "amapi-events"
+    region  = "row"
+    managed = "terraform"
+  }
+
+  depends_on = [google_project_service.pubsub]
+}
+
+# 创建 Dead Letter Topics
+resource "google_pubsub_topic" "amapi_events_cn_deadletter" {
+  name    = "${var.topic_name_prefix}-cn-deadletter"
   project = var.project_id
 
   message_retention_duration = "604800s"
 
   labels = {
     purpose = "amapi-events-deadletter"
+    region  = "cn"
     managed = "terraform"
   }
 
   depends_on = [google_project_service.pubsub]
 }
 
-# 创建订阅 (可选)
-resource "google_pubsub_subscription" "amapi_events_sub" {
-  name    = "${var.topic_name}-subscription"
-  topic   = google_pubsub_topic.amapi_events.name
+resource "google_pubsub_topic" "amapi_events_row_deadletter" {
+  name    = "${var.topic_name_prefix}-row-deadletter"
+  project = var.project_id
+
+  message_retention_duration = "604800s"
+
+  labels = {
+    purpose = "amapi-events-deadletter"
+    region  = "row"
+    managed = "terraform"
+  }
+
+  depends_on = [google_project_service.pubsub]
+}
+
+# 创建订阅 - CN
+resource "google_pubsub_subscription" "amapi_events_cn_sub" {
+  name    = "${var.topic_name_prefix}-cn-subscription"
+  topic   = google_pubsub_topic.amapi_events_cn.name
   project = var.project_id
 
   # 消息确认截止时间
@@ -88,7 +122,7 @@ resource "google_pubsub_subscription" "amapi_events_sub" {
 
   # Dead Letter 配置
   dead_letter_policy {
-    dead_letter_topic     = google_pubsub_topic.amapi_events_deadletter.id
+    dead_letter_topic     = google_pubsub_topic.amapi_events_cn_deadletter.id
     max_delivery_attempts = 5
   }
 
@@ -99,14 +133,51 @@ resource "google_pubsub_subscription" "amapi_events_sub" {
 
   labels = {
     purpose = "amapi-events"
+    region  = "cn"
     managed = "terraform"
   }
 }
 
-# 为 Dead Letter Topic 创建订阅
-resource "google_pubsub_subscription" "amapi_events_deadletter_sub" {
-  name    = "${var.topic_name}-deadletter-subscription"
-  topic   = google_pubsub_topic.amapi_events_deadletter.name
+# 创建订阅 - ROW
+resource "google_pubsub_subscription" "amapi_events_row_sub" {
+  name    = "${var.topic_name_prefix}-row-subscription"
+  topic   = google_pubsub_topic.amapi_events_row.name
+  project = var.project_id
+
+  # 消息确认截止时间
+  ack_deadline_seconds = 20
+
+  # 消息保留时间
+  message_retention_duration = "604800s"
+
+  # 重试策略
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+
+  # Dead Letter 配置
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.amapi_events_row_deadletter.id
+    max_delivery_attempts = 5
+  }
+
+  # 过期策略 (31天未使用则删除)
+  expiration_policy {
+    ttl = "2678400s" # 31 days
+  }
+
+  labels = {
+    purpose = "amapi-events"
+    region  = "row"
+    managed = "terraform"
+  }
+}
+
+# 为 Dead Letter Topics 创建订阅
+resource "google_pubsub_subscription" "amapi_events_cn_deadletter_sub" {
+  name    = "${var.topic_name_prefix}-cn-deadletter-subscription"
+  topic   = google_pubsub_topic.amapi_events_cn_deadletter.name
   project = var.project_id
 
   ack_deadline_seconds       = 20
@@ -114,6 +185,22 @@ resource "google_pubsub_subscription" "amapi_events_deadletter_sub" {
 
   labels = {
     purpose = "amapi-events-deadletter"
+    region  = "cn"
+    managed = "terraform"
+  }
+}
+
+resource "google_pubsub_subscription" "amapi_events_row_deadletter_sub" {
+  name    = "${var.topic_name_prefix}-row-deadletter-subscription"
+  topic   = google_pubsub_topic.amapi_events_row_deadletter.name
+  project = var.project_id
+
+  ack_deadline_seconds       = 20
+  message_retention_duration = "604800s"
+
+  labels = {
+    purpose = "amapi-events-deadletter"
+    region  = "row"
     managed = "terraform"
   }
 }
@@ -137,18 +224,34 @@ resource "google_project_iam_member" "amapi_admin" {
   depends_on = [google_project_service.androidmanagement]
 }
 
-# 授予 Service Account Pub/Sub Publisher 权限
-resource "google_pubsub_topic_iam_member" "amapi_publisher" {
+# 授予 Service Account Pub/Sub Publisher 权限 - CN Topic
+resource "google_pubsub_topic_iam_member" "amapi_publisher_cn" {
   project = var.project_id
-  topic   = google_pubsub_topic.amapi_events.name
+  topic   = google_pubsub_topic.amapi_events_cn.name
   role    = "roles/pubsub.publisher"
   member  = "serviceAccount:${google_service_account.amapi_sa.email}"
 }
 
-# 授予 Service Account Pub/Sub Subscriber 权限
-resource "google_pubsub_subscription_iam_member" "amapi_subscriber" {
+# 授予 Service Account Pub/Sub Publisher 权限 - ROW Topic
+resource "google_pubsub_topic_iam_member" "amapi_publisher_row" {
+  project = var.project_id
+  topic   = google_pubsub_topic.amapi_events_row.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.amapi_sa.email}"
+}
+
+# 授予 Service Account Pub/Sub Subscriber 权限 - CN Subscription
+resource "google_pubsub_subscription_iam_member" "amapi_subscriber_cn" {
   project      = var.project_id
-  subscription = google_pubsub_subscription.amapi_events_sub.name
+  subscription = google_pubsub_subscription.amapi_events_cn_sub.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${google_service_account.amapi_sa.email}"
+}
+
+# 授予 Service Account Pub/Sub Subscriber 权限 - ROW Subscription
+resource "google_pubsub_subscription_iam_member" "amapi_subscriber_row" {
+  project      = var.project_id
+  subscription = google_pubsub_subscription.amapi_events_row_sub.name
   role         = "roles/pubsub.subscriber"
   member       = "serviceAccount:${google_service_account.amapi_sa.email}"
 }
@@ -160,16 +263,26 @@ resource "google_project_iam_member" "amapi_viewer" {
   member  = "serviceAccount:${google_service_account.amapi_sa.email}"
 }
 
-# 为 Android Management API 授权发布到 Topic
+# 为 Android Management API 授权发布到 Topics
 # Android Management API 使用 Google-managed service account
 data "google_project" "project" {
   project_id = var.project_id
 }
 
-# 授予 Android Management API service account 发布权限
-resource "google_pubsub_topic_iam_member" "amapi_service_publisher" {
+# 授予 Android Management API service account 发布权限 - CN Topic
+resource "google_pubsub_topic_iam_member" "amapi_service_publisher_cn" {
   project = var.project_id
-  topic   = google_pubsub_topic.amapi_events.name
+  topic   = google_pubsub_topic.amapi_events_cn.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-androidmanagement.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.androidmanagement]
+}
+
+# 授予 Android Management API service account 发布权限 - ROW Topic
+resource "google_pubsub_topic_iam_member" "amapi_service_publisher_row" {
+  project = var.project_id
+  topic   = google_pubsub_topic.amapi_events_row.name
   role    = "roles/pubsub.publisher"
   member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-androidmanagement.iam.gserviceaccount.com"
 
