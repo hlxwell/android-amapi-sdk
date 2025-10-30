@@ -23,8 +23,7 @@ amapi-pkg/
 │       └── GODOC.md      # GoDoc 指南
 │
 ├── scripts/               # 脚本工具 ⭐
-│   ├── generate_docs.sh  # 文档生成脚本
-│   ├── docs.sh          # 文档查看脚本
+│   ├── docs.sh          # 统一文档工具（查看、验证、生成）
 │   └── README.md        # 脚本使用说明
 │
 ├── docs/                  # 项目文档 ⭐
@@ -72,15 +71,16 @@ amapi-pkg/
 **规则**: 所有脚本文件必须放在 `/scripts` 目录下
 
 **包含**:
-- `generate_docs.sh` - 文档生成脚本
-- `docs.sh` - 文档查看脚本
+- `docs.sh` - 统一文档工具（查看、验证、生成）
 - 未来添加的其他脚本
 
 **使用方法**:
 ```bash
 # 从项目根目录运行
-./scripts/generate_docs.sh
-./scripts/docs.sh help
+./scripts/docs.sh help          # 查看帮助
+./scripts/docs.sh verify        # 验证编译
+./scripts/docs.sh serve         # 启动服务器
+./scripts/docs.sh generate      # 完整流程
 ```
 
 ### ✅ 文档文件位置
@@ -146,8 +146,7 @@ Go 客户端库，提供完整的 Android Management API 功能。
 开发和文档相关的脚本工具。
 
 **可用脚本**:
-- `generate_docs.sh` - 生成 godoc 文档
-- `docs.sh` - 快速查看文档
+- `docs.sh` - 统一文档工具（包含所有文档功能）
 
 ### 5. 文档 (`docs/`)
 所有项目文档的集中位置。
@@ -173,7 +172,7 @@ make build
 ./build/amapi-cli health
 
 # 4. 生成文档（可选）
-./scripts/generate_docs.sh
+./scripts/docs.sh generate
 ```
 
 ### 文档更新流程
@@ -182,7 +181,7 @@ make build
 vim docs/USAGE_GUIDE.md
 
 # 2. 更新脚本
-vim scripts/generate_docs.sh
+vim scripts/docs.sh
 
 # 3. 验证构建（确保没有破坏代码）
 make build
@@ -207,7 +206,7 @@ terraform apply
 - **中文**: 使用下划线分隔（如 `AMAPI_快速开始.md`）
 
 ### Shell 脚本
-- **小写**: 使用下划线分隔（如 `generate_docs.sh`）
+- **小写**: 使用下划线或连字符分隔（如 `docs.sh`）
 - **权限**: 确保可执行 `chmod +x`
 
 ### Go 文件

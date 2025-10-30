@@ -103,9 +103,9 @@
 - 支持自定义端口
 - 提供快捷访问链接
 
-#### generate_docs.sh - 文档生成脚本
+#### docs.sh - 统一文档工具
 
-**位置**: `/Users/hlxwell/projects/amapi-pkg/scripts/generate_docs.sh`
+**位置**: `/Users/hlxwell/projects/amapi-pkg/scripts/docs.sh`
 
 **功能**:
 - 验证代码编译

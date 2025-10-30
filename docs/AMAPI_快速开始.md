@@ -22,7 +22,7 @@
 - **包含**: 4 种查看方式、常用命令、文档特点
 
 ### 4️⃣ 文档查看工具
-- **文件**: `docs.sh`, `generate_docs.sh`
+- **文件**: `docs.sh` (统一文档工具)
 - **功能**: 便捷查看和生成文档
 - **特点**: 彩色输出、自动安装依赖
 
@@ -197,33 +197,39 @@ go doc config.Config
 | `GODOC.md` | 7.3KB | GoDoc 查看指南 |
 | `文档完成总结.md` | 8.2KB | 文档创建总结 |
 | `快速开始.md` | 本文件 | 快速入门指南 |
-| `docs.sh` | 3.8KB | 文档查看脚本 |
-| `generate_docs.sh` | 2.2KB | 文档生成脚本 |
+| `docs.sh` | 7.5KB | 统一文档工具（查看、验证、生成） |
 
 ## 🔧 工具脚本说明
 
-### docs.sh
+### docs.sh - 统一文档工具
 
-**用途**: 快速查看文档
-
-**使用方法**:
-```bash
-./docs.sh              # 查看包概览
-./docs.sh all          # 查看完整文档
-./docs.sh type <名称>  # 查看特定类型
-./docs.sh serve        # 启动 Web 服务器
-./docs.sh help         # 查看帮助
-```
-
-### generate_docs.sh
-
-**用途**: 生成和验证文档
+**用途**: 查看、验证和生成文档的多功能工具
 
 **使用方法**:
 ```bash
 # 从项目根目录运行
-./scripts/generate_docs.sh     # 验证代码并启动 godoc
+./scripts/docs.sh [命令] [参数]
+
+# 常用命令
+./scripts/docs.sh               # 显示包概览（默认）
+./scripts/docs.sh all           # 显示完整文档
+./scripts/docs.sh type Client   # 查看特定类型
+./scripts/docs.sh verify        # 验证代码编译
+./scripts/docs.sh serve         # 启动 Web 服务器
+./scripts/docs.sh generate      # 完整生成流程
+./scripts/docs.sh help          # 查看帮助
 ```
+
+**可用命令**:
+- `show` - 显示包概览和导出类型
+- `all` - 显示完整文档
+- `type <名称>` - 显示特定类型
+- `config` - 显示 config 包
+- `client` - 显示 client 包
+- `types` - 显示 types 包
+- `verify` - 验证代码编译
+- `serve [端口]` - 启动 godoc 服务器（默认6060）
+- `generate` - 验证 + 预览 + 服务器
 
 ## 🌟 推荐的使用方式
 
