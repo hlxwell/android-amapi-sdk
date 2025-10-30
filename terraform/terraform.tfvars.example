@@ -1,0 +1,29 @@
+# 将此文件复制为 terraform.tfvars 并填写你的实际配置
+# cp terraform.tfvars.example terraform.tfvars
+
+# GCP 项目 ID (必填)
+project_id = "your-project-id"
+
+# GCP 区域 (可选,默认: us-central1)
+region = "us-central1"
+
+# Pub/Sub Topic 名称 (可选,默认: amapi-events)
+topic_name = "amapi-events"
+
+# Service Account ID (可选,默认: amapi-service-account)
+service_account_id = "amapi-service-account"
+
+# Service Account 显示名称 (可选)
+service_account_display_name = "Android Management API Service Account"
+
+# 是否创建 Service Account Key (可选,默认: false)
+# 注意: 生产环境建议使用 Workload Identity 而不是 Service Account Key
+create_service_account_key = false
+
+# 是否将 Service Account Key 保存到文件 (可选,默认: false)
+# 只有当 create_service_account_key = true 时才有效
+save_key_to_file = false
+
+# Service Account Key 文件名 (可选,默认: sa-key.json)
+service_account_key_filename = "sa-key.json"
+
