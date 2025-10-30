@@ -1,5 +1,61 @@
-// Package config provides configuration management for the amapi package.
-// It supports loading configuration from environment variables, YAML files, and JSON files.
+// Package config 提供 Android Management API 客户端的配置管理功能。
+//
+// 此包支持多种配置加载方式：
+//   - 环境变量（最高优先级）
+//   - YAML 配置文件
+//   - JSON 配置文件
+//   - 程序化配置（代码中直接构造）
+//
+// # 快速开始
+//
+// 使用自动配置加载（推荐）：
+//
+//	cfg, err := config.AutoLoadConfig()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// 从环境变量加载：
+//
+//	cfg, err := config.LoadFromEnv()
+//
+// 从文件加载：
+//
+//	cfg, err := config.LoadFromFile("./config.yaml")
+//
+// 手动配置：
+//
+//	cfg := &config.Config{
+//	    ProjectID:       "your-project-id",
+//	    CredentialsFile: "./sa-key.json",
+//	    Timeout:         30 * time.Second,
+//	    RetryAttempts:   3,
+//	}
+//
+// # 配置文件搜索路径
+//
+// AutoLoadConfig 会按以下顺序搜索配置文件：
+//   1. ./config.yaml
+//   2. ./config.yml
+//   3. ./amapi.yaml
+//   4. ./amapi.yml
+//   5. ~/.config/amapi/config.yaml
+//   6. ~/.config/amapi/config.yml
+//   7. /etc/amapi/config.yaml
+//   8. /etc/amapi/config.yml
+//
+// # 环境变量
+//
+// 支持的环境变量：
+//   - GOOGLE_CLOUD_PROJECT: Google Cloud 项目 ID
+//   - GOOGLE_APPLICATION_CREDENTIALS: 服务账号密钥文件路径
+//   - AMAPI_CALLBACK_URL: 企业注册回调 URL
+//   - AMAPI_TIMEOUT: API 请求超时时间
+//   - AMAPI_RETRY_ATTEMPTS: 重试次数
+//   - AMAPI_ENABLE_RETRY: 是否启用重试
+//   - AMAPI_LOG_LEVEL: 日志级别 (debug/info/warn/error)
+//
+// 详见各配置字段的文档。
 package config
 
 import (
@@ -13,40 +69,117 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config represents the configuration for the Android Management API client.
+// Config 包含 Android Management API 客户端的所有配置选项。
+//
+// 配置可以通过多种方式提供：环境变量、配置文件或程序化创建。
+// 使用 Validate() 方法可以验证配置的完整性和有效性。
 type Config struct {
-	// Google Cloud configuration
-	ProjectID               string `yaml:"project_id" json:"project_id"`
-	CredentialsFile         string `yaml:"credentials_file" json:"credentials_file"`
-	CredentialsJSON         string `yaml:"credentials_json" json:"credentials_json"`
+	// Google Cloud 配置
 
-	// API configuration
-	ServiceAccountEmail     string `yaml:"service_account_email" json:"service_account_email"`
-	Scopes                  []string `yaml:"scopes" json:"scopes"`
+	// ProjectID 是 Google Cloud 项目 ID（必需）。
+	// 可通过环境变量 GOOGLE_CLOUD_PROJECT 设置。
+	ProjectID string `yaml:"project_id" json:"project_id"`
 
-	// Client configuration
-	Timeout                 time.Duration `yaml:"timeout" json:"timeout"`
-	RetryAttempts          int    `yaml:"retry_attempts" json:"retry_attempts"`
-	RetryDelay             time.Duration `yaml:"retry_delay" json:"retry_delay"`
-	EnableRetry            bool   `yaml:"enable_retry" json:"enable_retry"`
+	// CredentialsFile 是服务账号密钥 JSON 文件的路径。
+	// 与 CredentialsJSON 二选一，优先使用 CredentialsFile。
+	// 可通过环境变量 GOOGLE_APPLICATION_CREDENTIALS 设置。
+	CredentialsFile string `yaml:"credentials_file" json:"credentials_file"`
 
-	// Callback configuration
-	CallbackURL            string `yaml:"callback_url" json:"callback_url"`
+	// CredentialsJSON 是服务账号密钥的 JSON 内容。
+	// 与 CredentialsFile 二选一。
+	CredentialsJSON string `yaml:"credentials_json" json:"credentials_json"`
 
-	// Cache configuration
-	EnableCache            bool   `yaml:"enable_cache" json:"enable_cache"`
-	CacheTTL               time.Duration `yaml:"cache_ttl" json:"cache_ttl"`
+	// API 配置
 
-	// Logging configuration
-	LogLevel               string `yaml:"log_level" json:"log_level"`
-	EnableDebugLogging     bool   `yaml:"enable_debug_logging" json:"enable_debug_logging"`
+	// ServiceAccountEmail 是服务账号的邮箱地址（可选）。
+	ServiceAccountEmail string `yaml:"service_account_email" json:"service_account_email"`
 
-	// Rate limiting
-	RateLimit              int    `yaml:"rate_limit" json:"rate_limit"`
-	RateBurst              int    `yaml:"rate_burst" json:"rate_burst"`
+	// Scopes 是 OAuth2 权限范围列表。
+	// 默认为 ["https://www.googleapis.com/auth/androidmanagement"]
+	Scopes []string `yaml:"scopes" json:"scopes"`
+
+	// 客户端配置
+
+	// Timeout 是 API 请求的超时时间。
+	// 默认为 30 秒。
+	// 可通过环境变量 AMAPI_TIMEOUT 设置（如 "30s"）。
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
+
+	// RetryAttempts 是失败请求的最大重试次数。
+	// 默认为 3 次。
+	// 可通过环境变量 AMAPI_RETRY_ATTEMPTS 设置。
+	RetryAttempts int `yaml:"retry_attempts" json:"retry_attempts"`
+
+	// RetryDelay 是重试之间的基础延迟时间。
+	// 实际延迟使用指数退避算法计算。
+	// 默认为 1 秒。
+	// 可通过环境变量 AMAPI_RETRY_DELAY 设置（如 "1s"）。
+	RetryDelay time.Duration `yaml:"retry_delay" json:"retry_delay"`
+
+	// EnableRetry 控制是否启用自动重试。
+	// 默认为 true。
+	// 可通过环境变量 AMAPI_ENABLE_RETRY 设置。
+	EnableRetry bool `yaml:"enable_retry" json:"enable_retry"`
+
+	// 回调配置
+
+	// CallbackURL 是企业注册完成后的回调 URL。
+	// 可通过环境变量 AMAPI_CALLBACK_URL 设置。
+	CallbackURL string `yaml:"callback_url" json:"callback_url"`
+
+	// 缓存配置
+
+	// EnableCache 控制是否启用响应缓存（实验性功能）。
+	// 默认为 false。
+	EnableCache bool `yaml:"enable_cache" json:"enable_cache"`
+
+	// CacheTTL 是缓存的有效期。
+	// 默认为 5 分钟。
+	CacheTTL time.Duration `yaml:"cache_ttl" json:"cache_ttl"`
+
+	// 日志配置
+
+	// LogLevel 是日志级别，可选值：debug, info, warn, error。
+	// 默认为 "info"。
+	// 可通过环境变量 AMAPI_LOG_LEVEL 设置。
+	LogLevel string `yaml:"log_level" json:"log_level"`
+
+	// EnableDebugLogging 控制是否启用详细的调试日志。
+	// 默认为 false。
+	// 可通过环境变量 AMAPI_ENABLE_DEBUG_LOGGING 设置。
+	EnableDebugLogging bool `yaml:"enable_debug_logging" json:"enable_debug_logging"`
+
+	// 速率限制
+
+	// RateLimit 是每分钟允许的最大请求数。
+	// 默认为 100。
+	// 可通过环境变量 AMAPI_RATE_LIMIT 设置。
+	RateLimit int `yaml:"rate_limit" json:"rate_limit"`
+
+	// RateBurst 是允许的突发请求数量。
+	// 默认为 10。
+	// 可通过环境变量 AMAPI_RATE_BURST 设置。
+	RateBurst int `yaml:"rate_burst" json:"rate_burst"`
 }
 
-// DefaultConfig returns a configuration with sensible defaults.
+// DefaultConfig 返回一个包含合理默认值的配置对象。
+//
+// 返回的配置包含以下默认值：
+//   - Timeout: 30 秒
+//   - RetryAttempts: 3 次
+//   - RetryDelay: 1 秒
+//   - EnableRetry: true
+//   - LogLevel: "info"
+//   - RateLimit: 100 次/分钟
+//   - RateBurst: 10 次
+//
+// 你仍然需要设置必需的字段（ProjectID 和认证信息）。
+//
+// 示例：
+//
+//	cfg := config.DefaultConfig()
+//	cfg.ProjectID = "your-project-id"
+//	cfg.CredentialsFile = "./sa-key.json"
 func DefaultConfig() *Config {
 	return &Config{
 		Scopes: []string{
@@ -65,7 +198,25 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Validate validates the configuration and returns an error if invalid.
+// Validate 验证配置的完整性和有效性。
+//
+// 执行以下验证：
+//   - ProjectID 不能为空
+//   - 必须提供 CredentialsFile 或 CredentialsJSON 之一
+//   - 如果提供了 CredentialsFile，检查文件是否存在
+//   - Timeout 必须大于 0
+//   - RetryAttempts 必须非负
+//   - RetryDelay 必须非负
+//   - LogLevel 必须是 debug/info/warn/error 之一
+//
+// 返回第一个发现的验证错误，如果配置有效则返回 nil。
+//
+// 示例：
+//
+//	cfg := &Config{...}
+//	if err := cfg.Validate(); err != nil {
+//	    log.Fatalf("配置无效: %v", err)
+//	}
 func (c *Config) Validate() error {
 	if c.ProjectID == "" {
 		return fmt.Errorf("project_id is required")
@@ -106,7 +257,28 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// LoadFromFile loads configuration from a YAML or JSON file.
+// LoadFromFile 从 YAML 或 JSON 文件加载配置。
+//
+// 支持的文件格式：
+//   - .yaml, .yml (YAML 格式)
+//   - .json (JSON 格式)
+//
+// 文件格式由扩展名自动识别。
+// 加载的配置会与默认配置合并，文件中的值覆盖默认值。
+//
+// 参数：
+//   - path: 配置文件的路径
+//
+// 返回：
+//   - 加载并验证后的配置对象
+//   - 如果文件不存在、格式错误或验证失败，返回错误
+//
+// 示例：
+//
+//	cfg, err := config.LoadFromFile("./config.yaml")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func LoadFromFile(path string) (*Config, error) {
 	config := DefaultConfig()
 
@@ -136,7 +308,30 @@ func LoadFromFile(path string) (*Config, error) {
 	return config, nil
 }
 
-// SaveToFile saves the configuration to a YAML or JSON file.
+// SaveToFile 将配置保存到 YAML 或 JSON 文件。
+//
+// 支持的文件格式：
+//   - .yaml, .yml (YAML 格式)
+//   - .json (JSON 格式，带缩进美化)
+//
+// 文件格式由扩展名自动识别。
+// 在保存前会先验证配置的有效性。
+//
+// 参数：
+//   - path: 目标文件的路径
+//
+// 返回：
+//   - 如果配置无效、序列化失败或写入失败，返回错误
+//
+// 示例：
+//
+//	cfg := config.DefaultConfig()
+//	cfg.ProjectID = "my-project"
+//	cfg.CredentialsFile = "./key.json"
+//
+//	if err := cfg.SaveToFile("./config.yaml"); err != nil {
+//	    log.Fatal(err)
+//	}
 func (c *Config) SaveToFile(path string) error {
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
@@ -168,7 +363,23 @@ func (c *Config) SaveToFile(path string) error {
 	return nil
 }
 
-// Clone creates a deep copy of the configuration.
+// Clone 创建配置的深拷贝。
+//
+// 返回的配置对象是完全独立的副本，修改副本不会影响原配置。
+// 包括所有嵌套的切片（如 Scopes）都会被深拷贝。
+//
+// 这在需要基于现有配置创建变体时很有用。
+//
+// 示例：
+//
+//	originalCfg := config.DefaultConfig()
+//
+//	// 创建一个副本用于测试
+//	testCfg := originalCfg.Clone()
+//	testCfg.RetryAttempts = 10
+//	testCfg.EnableDebugLogging = true
+//
+//	// originalCfg 保持不变
 func (c *Config) Clone() *Config {
 	clone := *c
 
