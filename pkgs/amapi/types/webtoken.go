@@ -21,42 +21,32 @@ import (
 
 // WebToken helper functions (for androidmanagement.WebToken)
 
-// GetWebTokenID extracts the token ID from the resource name.
+// GetWebTokenID extracts the web token ID from the resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetWebTokenID(token *androidmanagement.WebToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-
-	// Extract ID from name format: enterprises/{enterpriseId}/webTokens/{tokenId}
-	for i := len(token.Name) - 1; i >= 0; i-- {
-		if token.Name[i] == '/' {
-			return token.Name[i+1:]
-		}
+	rn := ParseResourceNameStruct(token.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return token.Name
+	return rn.WebTokenID
 }
 
 // GetWebTokenEnterpriseID extracts the enterprise ID from the token resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetWebTokenEnterpriseID(token *androidmanagement.WebToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-
-	// Extract from name format: enterprises/{enterpriseId}/webTokens/{tokenId}
-	const prefix = "enterprises/"
-	if len(token.Name) <= len(prefix) || token.Name[:len(prefix)] != prefix {
+	rn := ParseResourceNameStruct(token.Name)
+	if rn == nil {
 		return ""
 	}
-
-	remaining := token.Name[len(prefix):]
-	for i, char := range remaining {
-		if char == '/' {
-			return remaining[:i]
-		}
-	}
-
-	return ""
+	return rn.EnterpriseID
 }
 
 // Note: Type conversion functions removed

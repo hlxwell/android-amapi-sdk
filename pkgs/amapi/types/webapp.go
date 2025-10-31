@@ -17,51 +17,41 @@ import (
 //	)
 //
 //		// 创建 Web 应用直接传递参数
-	//	webApp, err := client.WebApps().Create(
-	//	    "enterprises/LC00abc123",
-	//	    "https://example.com",
-	//	    nil, // icons
-	//	    0,   // versionCode
-	//	)
+//	webApp, err := client.WebApps().Create(
+//	    "enterprises/LC00abc123",
+//	    "https://example.com",
+//	    nil, // icons
+//	    0,   // versionCode
+//	)
 
 // WebApp helper functions (for androidmanagement.WebApp)
 
 // GetWebAppID extracts the web app ID from the resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetWebAppID(webApp *androidmanagement.WebApp) string {
 	if webApp == nil || webApp.Name == "" {
 		return ""
 	}
-
-	// Extract ID from name format: enterprises/{enterpriseId}/webApps/{webAppId}
-	for i := len(webApp.Name) - 1; i >= 0; i-- {
-		if webApp.Name[i] == '/' {
-			return webApp.Name[i+1:]
-		}
+	rn := ParseResourceNameStruct(webApp.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return webApp.Name
+	return rn.WebAppID
 }
 
 // GetWebAppEnterpriseID extracts the enterprise ID from the web app resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetWebAppEnterpriseID(webApp *androidmanagement.WebApp) string {
 	if webApp == nil || webApp.Name == "" {
 		return ""
 	}
-
-	// Extract from name format: enterprises/{enterpriseId}/webApps/{webAppId}
-	const prefix = "enterprises/"
-	if len(webApp.Name) <= len(prefix) || webApp.Name[:len(prefix)] != prefix {
+	rn := ParseResourceNameStruct(webApp.Name)
+	if rn == nil {
 		return ""
 	}
-
-	remaining := webApp.Name[len(prefix):]
-	for i, char := range remaining {
-		if char == '/' {
-			return remaining[:i]
-		}
-	}
-
-	return ""
+	return rn.EnterpriseID
 }
 
 // Note: Type conversion functions removed

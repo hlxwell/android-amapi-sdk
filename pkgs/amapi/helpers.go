@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"google.golang.org/api/androidmanagement/v1"
+
+	"amapi-pkg/pkgs/amapi/types"
 )
 
 // Helper functions for androidmanagement.Enterprise
@@ -134,40 +136,31 @@ func SetEnrollmentTokenAllowPersonalUsage(token *androidmanagement.EnrollmentTok
 // Helper functions for androidmanagement.Policy
 
 // GetPolicyID extracts the policy ID from the resource name.
+//
+// This is a convenience wrapper around types.ParseResourceNameStruct.
 func GetPolicyID(policy *androidmanagement.Policy) string {
 	if policy == nil || policy.Name == "" {
 		return ""
 	}
-
-	// Extract ID from policy name format: enterprises/{enterpriseId}/policies/{policyId}
-	for i := len(policy.Name) - 1; i >= 0; i-- {
-		if policy.Name[i] == '/' {
-			return policy.Name[i+1:]
-		}
+	rn := types.ParseResourceNameStruct(policy.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return policy.Name
+	return rn.PolicyID
 }
 
 // GetPolicyEnterpriseID extracts the enterprise ID from the policy resource name.
+//
+// This is a convenience wrapper around types.ParseResourceNameStruct.
 func GetPolicyEnterpriseID(policy *androidmanagement.Policy) string {
 	if policy == nil || policy.Name == "" {
 		return ""
 	}
-
-	const prefix = "enterprises/"
-	if len(policy.Name) <= len(prefix) || policy.Name[:len(prefix)] != prefix {
+	rn := types.ParseResourceNameStruct(policy.Name)
+	if rn == nil {
 		return ""
 	}
-
-	remaining := policy.Name[len(prefix):]
-	for i, char := range remaining {
-		if char == '/' {
-			return remaining[:i]
-		}
-	}
-
-	return ""
+	return rn.EnterpriseID
 }
 
 // Helper functions for androidmanagement.Device
@@ -258,16 +251,16 @@ func ParseResourceName(name string) (resourceType, enterpriseID, resourceID stri
 // QRCodeData represents the data encoded in enrollment QR codes.
 // This is kept in helpers.go as it's a helper type for QR code generation.
 type QRCodeData struct {
-	EnrollmentToken             string                 `json:"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,omitempty"`
-	WiFiSSID                    string                 `json:"android.app.extra.PROVISIONING_WIFI_SSID,omitempty"`
-	WiFiPassword                string                 `json:"android.app.extra.PROVISIONING_WIFI_PASSWORD,omitempty"`
-	WiFiSecurityType            string                 `json:"android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE,omitempty"`
-	WiFiHidden                  bool                   `json:"android.app.extra.PROVISIONING_WIFI_HIDDEN,omitempty"`
-	TimeZone                    string                 `json:"android.app.extra.PROVISIONING_TIME_ZONE,omitempty"`
-	Locale                      string                 `json:"android.app.extra.PROVISIONING_LOCALE,omitempty"`
-	SkipSetupWizard             bool                   `json:"android.app.extra.PROVISIONING_SKIP_SETUP_WIZARD,omitempty"`
-	LeaveAllSystemAppsEnabled   bool                   `json:"android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED,omitempty"`
-	AdminExtrasBundle           map[string]interface{} `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE,omitempty"`
+	EnrollmentToken           string                 `json:"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,omitempty"`
+	WiFiSSID                  string                 `json:"android.app.extra.PROVISIONING_WIFI_SSID,omitempty"`
+	WiFiPassword              string                 `json:"android.app.extra.PROVISIONING_WIFI_PASSWORD,omitempty"`
+	WiFiSecurityType          string                 `json:"android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE,omitempty"`
+	WiFiHidden                bool                   `json:"android.app.extra.PROVISIONING_WIFI_HIDDEN,omitempty"`
+	TimeZone                  string                 `json:"android.app.extra.PROVISIONING_TIME_ZONE,omitempty"`
+	Locale                    string                 `json:"android.app.extra.PROVISIONING_LOCALE,omitempty"`
+	SkipSetupWizard           bool                   `json:"android.app.extra.PROVISIONING_SKIP_SETUP_WIZARD,omitempty"`
+	LeaveAllSystemAppsEnabled bool                   `json:"android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED,omitempty"`
+	AdminExtrasBundle         map[string]interface{} `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE,omitempty"`
 }
 
 // QRCodeOptions provides options for QR code generation.
@@ -303,4 +296,3 @@ func GenerateQRCodeData(token *androidmanagement.EnrollmentToken, options *QRCod
 
 	return data
 }
-

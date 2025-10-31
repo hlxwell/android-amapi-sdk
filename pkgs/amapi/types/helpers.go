@@ -14,10 +14,21 @@
 //	types.RemoveApplication(policy, "com.example.app")
 //	err := types.ValidatePolicy(policy)
 //
-//	// 提取资源 ID
+//	// 提取资源 ID（使用便捷包装器）
 //	enterpriseID := types.GetEnterpriseID(enterprise)
 //	policyID := types.GetPolicyID(policy)
 //	deviceID := types.GetDeviceID(device)
+//	tokenID := types.GetEnrollmentTokenID(token)
+//	migrationTokenID := types.GetMigrationTokenID(migrationToken)
+//
+//	// 或者使用结构体解析（推荐，更灵活）
+//	rn := types.ParseResourceNameStruct(resourceName)
+//	if rn != nil {
+//	    enterpriseID := rn.EnterpriseID
+//	    deviceID := rn.DeviceID
+//	    policyID := rn.PolicyID
+//	    resourceType := rn.ResourceType
+//	}
 //
 //	// 检查令牌状态
 //	isExpired := types.IsEnrollmentTokenExpired(token)
@@ -45,56 +56,48 @@ import (
 // Helper functions for androidmanagement.Enterprise
 
 // GetEnterpriseID extracts the enterprise ID from the resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
+// For more complex parsing, use ParseResourceNameStruct() directly.
 func GetEnterpriseID(enterprise *androidmanagement.Enterprise) string {
 	if enterprise == nil || enterprise.Name == "" {
 		return ""
 	}
-
-	const prefix = "enterprises/"
-	if len(enterprise.Name) > len(prefix) && enterprise.Name[:len(prefix)] == prefix {
-		return enterprise.Name[len(prefix):]
+	rn := ParseResourceNameStruct(enterprise.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return enterprise.Name
+	return rn.EnterpriseID
 }
 
 // Helper functions for androidmanagement.EnrollmentToken
 
 // GetEnrollmentTokenID extracts the token ID from the resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetEnrollmentTokenID(token *androidmanagement.EnrollmentToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-
-	// Extract ID from name format: enterprises/{enterpriseId}/enrollmentTokens/{tokenId}
-	for i := len(token.Name) - 1; i >= 0; i-- {
-		if token.Name[i] == '/' {
-			return token.Name[i+1:]
-		}
+	rn := ParseResourceNameStruct(token.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return token.Name
+	return rn.EnrollmentTokenID
 }
 
 // GetEnrollmentTokenEnterpriseID extracts the enterprise ID from the token resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetEnrollmentTokenEnterpriseID(token *androidmanagement.EnrollmentToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-
-	const prefix = "enterprises/"
-	if len(token.Name) <= len(prefix) || token.Name[:len(prefix)] != prefix {
+	rn := ParseResourceNameStruct(token.Name)
+	if rn == nil {
 		return ""
 	}
-
-	remaining := token.Name[len(prefix):]
-	for i, char := range remaining {
-		if char == '/' {
-			return remaining[:i]
-		}
-	}
-
-	return ""
+	return rn.EnterpriseID
 }
 
 // IsEnrollmentTokenExpired checks if the enrollment token has expired.
@@ -134,16 +137,16 @@ type QRCodeOptions struct {
 
 // QRCodeData represents the data encoded in enrollment QR codes.
 type QRCodeData struct {
-	EnrollmentToken             string                 `json:"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,omitempty"`
-	WiFiSSID                    string                 `json:"android.app.extra.PROVISIONING_WIFI_SSID,omitempty"`
-	WiFiPassword                string                 `json:"android.app.extra.PROVISIONING_WIFI_PASSWORD,omitempty"`
-	WiFiSecurityType            string                 `json:"android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE,omitempty"`
-	WiFiHidden                  bool                   `json:"android.app.extra.PROVISIONING_WIFI_HIDDEN,omitempty"`
-	TimeZone                    string                 `json:"android.app.extra.PROVISIONING_TIME_ZONE,omitempty"`
-	Locale                      string                 `json:"android.app.extra.PROVISIONING_LOCALE,omitempty"`
-	SkipSetupWizard             bool                   `json:"android.app.extra.PROVISIONING_SKIP_SETUP_WIZARD,omitempty"`
-	LeaveAllSystemAppsEnabled   bool                   `json:"android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED,omitempty"`
-	AdminExtrasBundle           map[string]interface{} `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE,omitempty"`
+	EnrollmentToken           string                 `json:"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,omitempty"`
+	WiFiSSID                  string                 `json:"android.app.extra.PROVISIONING_WIFI_SSID,omitempty"`
+	WiFiPassword              string                 `json:"android.app.extra.PROVISIONING_WIFI_PASSWORD,omitempty"`
+	WiFiSecurityType          string                 `json:"android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE,omitempty"`
+	WiFiHidden                bool                   `json:"android.app.extra.PROVISIONING_WIFI_HIDDEN,omitempty"`
+	TimeZone                  string                 `json:"android.app.extra.PROVISIONING_TIME_ZONE,omitempty"`
+	Locale                    string                 `json:"android.app.extra.PROVISIONING_LOCALE,omitempty"`
+	SkipSetupWizard           bool                   `json:"android.app.extra.PROVISIONING_SKIP_SETUP_WIZARD,omitempty"`
+	LeaveAllSystemAppsEnabled bool                   `json:"android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED,omitempty"`
+	AdminExtrasBundle         map[string]interface{} `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE,omitempty"`
 }
 
 // GenerateQRCodeData generates QR code data for an enrollment token.
@@ -175,4 +178,3 @@ func (qr *QRCodeData) ToJSON() (string, error) {
 	}
 	return string(data), nil
 }
-

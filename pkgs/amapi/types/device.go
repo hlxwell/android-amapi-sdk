@@ -27,42 +27,31 @@ import (
 // Device helper functions (for androidmanagement.Device)
 
 // GetDeviceID extracts the device ID from the resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetDeviceID(device *androidmanagement.Device) string {
 	if device == nil || device.Name == "" {
 		return ""
 	}
-
-	// Extract ID from name format: enterprises/{enterpriseId}/devices/{deviceId}
-	// Find the last '/' and return everything after it
-	for i := len(device.Name) - 1; i >= 0; i-- {
-		if device.Name[i] == '/' {
-			return device.Name[i+1:]
-		}
+	rn := ParseResourceNameStruct(device.Name)
+	if rn == nil {
+		return ""
 	}
-
-	return device.Name
+	return rn.DeviceID
 }
 
 // GetDeviceEnterpriseID extracts the enterprise ID from the device resource name.
+//
+// This is a convenience wrapper around ParseResourceNameStruct.
 func GetDeviceEnterpriseID(device *androidmanagement.Device) string {
 	if device == nil || device.Name == "" {
 		return ""
 	}
-
-	// Extract from name format: enterprises/{enterpriseId}/devices/{deviceId}
-	const prefix = "enterprises/"
-	if len(device.Name) <= len(prefix) || device.Name[:len(prefix)] != prefix {
+	rn := ParseResourceNameStruct(device.Name)
+	if rn == nil {
 		return ""
 	}
-
-	remaining := device.Name[len(prefix):]
-	for i, char := range remaining {
-		if char == '/' {
-			return remaining[:i]
-		}
-	}
-
-	return ""
+	return rn.EnterpriseID
 }
 
 // IsDeviceOnline checks if the device is currently online based on last status report.
