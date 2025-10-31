@@ -102,7 +102,11 @@ func main() {
     }
 
     // 4. 使用客户端
-    enterprises, err := c.Enterprises().List(nil)
+    enterprises, err := c.Enterprises().List(
+        "your-project-id",
+        0,  // pageSize
+        "", // pageToken
+    )
     if err != nil {
         log.Fatal(err)
     }
@@ -288,14 +292,13 @@ cfg.CredentialsFile = "./sa-key.json"
 
 ```go
 // 生成注册 URL，让管理员完成企业注册
-signupReq := &types.SignupURLRequest{
-    ProjectID:             "your-project-id",
-    CallbackURL:           "https://your-app.com/callback",
-    AdminEmail:            "admin@company.com",
-    EnterpriseDisplayName: "Example Company",
-}
-
-signupURL, err := c.Enterprises().GenerateSignupURL(signupReq)
+signupURL, err := c.Enterprises().GenerateSignupURL(
+    "your-project-id",
+    "https://your-app.com/callback",
+    "admin@company.com",
+    "Example Company",
+    "", // locale (可选)
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -307,13 +310,15 @@ log.Printf("请访问此 URL 完成注册: %s", signupURL.URL)
 
 ```go
 // 在回调 URL 接收到 token 后创建企业
-createReq := &types.EnterpriseCreateRequest{
-    SignupToken: "token-from-callback",
-    ProjectID:   "your-project-id",
-    DisplayName: "My Company",
+contactInfo := &androidmanagement.ContactInfo{
+    ContactEmail: "admin@company.com",
 }
-
-enterprise, err := c.Enterprises().Create(createReq)
+enterprise, err := c.Enterprises().Create(
+    "token-from-callback",
+    "your-project-id",
+    "", // enterpriseToken (可选)
+    contactInfo,
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -325,7 +330,11 @@ log.Printf("企业创建成功: %s", enterprise.Name)
 
 ```go
 // 列出项目下的所有企业
-enterprises, err := c.Enterprises().List(nil)
+enterprises, err := c.Enterprises().List(
+    "your-project-id",
+    0,   // pageSize (0 表示使用默认值)
+    "",  // pageToken (空字符串表示第一页)
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -352,17 +361,21 @@ log.Printf("联系邮箱: %s", enterprise.ContactInfo.ContactEmail)
 #### 更新企业信息
 
 ```go
-updateReq := &types.EnterpriseUpdateRequest{
-    DisplayName: "New Company Name",
-    ContactInfo: &types.ContactInfo{
-        ContactEmail:               "admin@company.com",
-        DataProtectionOfficerName:  "John Doe",
-        DataProtectionOfficerEmail: "dpo@company.com",
-        DataProtectionOfficerPhone: "+1-555-0123",
-    },
+contactInfo := &androidmanagement.ContactInfo{
+    ContactEmail:               "admin@company.com",
+    DataProtectionOfficerName:  "John Doe",
+    DataProtectionOfficerEmail: "dpo@company.com",
+    DataProtectionOfficerPhone: "+1-555-0123",
 }
-
-updated, err := c.Enterprises().Update("enterprises/LC00abc123", updateReq)
+enterprise, err := c.Enterprises().Update(
+    "enterprises/LC00abc123",
+    nil, // primaryColor (可选)
+    nil, // logo (可选)
+    contactInfo,
+    nil, // enabledNotificationTypes (可选)
+    nil, // appAutoApprovalEnabled (可选)
+    nil, // termsAndConditions (可选)
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -439,29 +452,33 @@ if err != nil {
 log.Printf("策略已创建: %s", created.Name)
 ```
 
-#### 使用预设创建策略
+#### 使用默认策略创建策略
 
 ```go
-// 使用完全托管设备预设
-preset := presets.GetFullyManagedPreset()
+// 使用默认策略（启用所有基础数据上报）
+policy := presets.GetDefaultPolicy()
 
-policy, err := c.Policies().CreateByEnterpriseID(
+createdPolicy, err := c.Policies().CreateByEnterpriseID(
     "LC00abc123",
-    "fully-managed-policy",
-    preset.Policy,
+    "default-policy",
+    policy,
 )
 if err != nil {
     log.Fatal(err)
 }
 
-log.Printf("使用预设创建策略: %s", preset.Name)
+log.Printf("策略已创建: %s", createdPolicy.Name)
 ```
 
 #### 列出策略
 
 ```go
 // 列出企业下的所有策略
-policies, err := c.Policies().ListByEnterpriseID("LC00abc123", nil)
+policies, err := c.Policies().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -544,7 +561,14 @@ log.Printf("使用此策略的设备数: %d", len(devices.Items))
 
 ```go
 // 列出企业下的所有设备
-devices, err := c.Devices().ListByEnterpriseID("LC00abc123", nil)
+devices, err := c.Devices().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+    "", // state (可选)
+    nil, // policyCompliant (可选)
+    "", // userName (可选)
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -596,12 +620,11 @@ if err != nil {
     log.Fatal(err)
 }
 
-// 启动丢失模式
-lostModeReq := &types.StartLostModeRequest{
-    Message:     "此设备已丢失，请联系 IT 部门",
-    PhoneNumber: "+1-555-0123",
+// 启动丢失模式（消息和电话号码通过 Command 传递）
+command := &androidmanagement.Command{
+    Type: string(types.CommandTypeStartLostMode),
 }
-err = c.Devices().StartLostMode("LC00abc123", "device-id", lostModeReq)
+_, err = c.Devices().IssueCommandByID("LC00abc123", "device-id", command)
 if err != nil {
     log.Fatal(err)
 }
@@ -675,15 +698,14 @@ log.Printf("过期时间: %s", token.ExpirationTimestamp)
 
 ```go
 // 创建具有自定义选项的令牌
-req := &types.EnrollmentTokenCreateRequest{
-    EnterpriseName:     "enterprises/LC00abc123",
-    PolicyName:         "enterprises/LC00abc123/policies/my-policy",
-    Duration:           7 * 24 * time.Hour, // 7 天
-    AllowPersonalUsage: true,                // BYOD 模式
-    OneTimeOnly:        true,                // 一次性使用
-}
-
-token, err := c.EnrollmentTokens().Create(req)
+token, err := c.EnrollmentTokens().Create(
+    "enterprises/LC00abc123",
+    "enterprises/LC00abc123/policies/my-policy",
+    7*24*time.Hour, // 7 天
+    true,  // AllowPersonalUsage: BYOD 模式
+    true,  // OneTimeOnly: 一次性使用
+    nil,   // user (可选)
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -771,13 +793,10 @@ log.Printf("令牌已撤销")
 
 ```go
 // 创建迁移令牌
-req := &types.MigrationTokenCreateRequest{
-    EnterpriseName: "enterprises/LC00abc123",
-    PolicyName:     "enterprises/LC00abc123/policies/migration-policy",
-    Duration:       30 * 24 * time.Hour, // 30 天
-}
-
-token, err := c.MigrationTokens().Create(req)
+token, err := c.MigrationTokens().Create(
+    "enterprises/LC00abc123",
+    "enterprises/LC00abc123/policies/migration-policy",
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -788,7 +807,11 @@ log.Printf("迁移令牌: %s", token.Value)
 #### 列出迁移令牌
 
 ```go
-tokens, err := c.MigrationTokens().ListByEnterpriseID("LC00abc123", nil)
+tokens, err := c.MigrationTokens().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -807,19 +830,17 @@ for _, token := range tokens.Items {
 #### 创建 Web 应用
 
 ```go
-webAppReq := &types.WebAppCreateRequest{
-    EnterpriseName: "enterprises/LC00abc123",
-    DisplayName:    "Company Portal",
-    StartURL:       "https://portal.company.com",
-    DisplayMode:    types.WebAppDisplayModeStandalone,
-    Icons: []types.WebAppIcon{
-        {
-            ImageData: "base64-encoded-image",
-        },
+icons := []*androidmanagement.WebAppIcon{
+    {
+        ImageData: "base64-encoded-image",
     },
 }
-
-webApp, err := c.WebApps().Create(webAppReq)
+webApp, err := c.WebApps().Create(
+    "enterprises/LC00abc123",
+    "https://portal.company.com",
+    icons,
+    1, // versionCode
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -830,7 +851,11 @@ log.Printf("Web 应用已创建: %s", webApp.Name)
 #### 列出 Web 应用
 
 ```go
-webApps, err := c.WebApps().ListByEnterpriseID("LC00abc123", nil)
+webApps, err := c.WebApps().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -847,13 +872,12 @@ for _, app := range webApps.Items {
 #### 创建 Web 令牌
 
 ```go
-req := &types.WebTokenCreateRequest{
-    EnterpriseName:  "enterprises/LC00abc123",
-    ParentFrameURL:  "https://admin.company.com",
-    Permissions:     []string{"MANAGE_POLICIES", "MANAGE_DEVICES"},
-}
-
-webToken, err := c.WebTokens().Create(req)
+enabledFeatures := []string{"POLICY_MANAGEMENT", "DEVICE_MANAGEMENT"}
+webToken, err := c.WebTokens().Create(
+    "enterprises/LC00abc123",
+    "https://admin.company.com", // parentFrameUrl
+    enabledFeatures,
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -879,49 +903,51 @@ log.Printf("配置信息名称: %s", provisioningInfo.Name)
 
 ## 策略预设
 
-SDK 提供 8 种预配置的策略模板，适用于不同的使用场景。
+SDK 提供了一个默认策略配置，用于快速开始设备管理。
 
-### 可用的预设
+### 默认策略
 
-```go
-// 获取所有预设
-allPresets := presets.GetAllPresets()
+默认策略启用了所有基础数据上报功能，包括：
 
-for _, preset := range allPresets {
-    log.Printf("预设: %s - %s", preset.Name, preset.Description)
-}
-```
+- **Status Reporting Settings**: 所有状态上报选项均启用
+  - 应用报告
+  - 设备设置
+  - 硬件和软件状态
+  - 网络信息
+  - 电源管理事件
 
-### 预设列表
+- **Usage Logs**: 启用安全日志（SECURITY_LOGS）
 
-| 预设名称 | 适用场景 | 特点 |
-|----------|----------|------|
-| `fully_managed` | 企业完全托管设备 | 标准企业策略，平衡安全性和功能性 |
-| `dedicated_device` | 专用设备/信息亭 | 锁定模式，限制用户操作 |
-| `work_profile` | BYOD 工作配置文件 | 分离工作和个人数据 |
-| `kiosk_mode` | 单应用信息亭 | 仅允许运行一个应用 |
-| `cope` | 企业拥有，个人使用 | 允许个人使用的企业设备 |
-| `secure_workstation` | 高安全性工作站 | 严格的安全限制 |
-| `education_tablet` | 教育平板 | 适合学校和教育机构 |
-| `retail_kiosk` | 零售终端 | 销售和客户服务终端 |
+这个配置可以让设备上报所有基础数据，便于全面的设备监控和管理。
 
-### 使用预设
+### 使用默认策略
 
 ```go
-// 1. 获取完全托管设备预设
-preset := presets.GetFullyManagedPreset()
+// 1. 获取默认策略
+policy := presets.GetDefaultPolicy()
 
-// 2. 直接使用预设创建策略
-policy, err := c.Policies().CreateByEnterpriseID(
+// 2. 直接使用创建策略
+createdPolicy, err := c.Policies().CreateByEnterpriseID(
     "LC00abc123",
-    "my-policy",
-    preset.Policy,
+    "default-policy",
+    policy,
 )
 
-// 3. 或者基于预设进行自定义
-customPolicy := preset.Policy.Clone()
-customPolicy.CameraDisabled = true
-customPolicy.AddApplication(types.NewRequiredApp("com.company.app"))
+// 3. 基于默认策略进行自定义
+// 注意：需要手动复制策略结构以避免修改原始策略
+customPolicy := &androidmanagement.Policy{
+    StatusReportingSettings: policy.StatusReportingSettings,
+    UsageLog:                policy.UsageLog,
+    // 添加自定义配置
+    CameraDisabled: true,
+}
+
+// 添加应用
+if customPolicy.Applications == nil {
+    customPolicy.Applications = []*androidmanagement.ApplicationPolicy{}
+}
+customPolicy.Applications = append(customPolicy.Applications,
+    types.NewRequiredApp("com.company.app"))
 
 policy, err = c.Policies().CreateByEnterpriseID(
     "LC00abc123",
@@ -930,124 +956,31 @@ policy, err = c.Policies().CreateByEnterpriseID(
 )
 ```
 
-### 预设详情
-
-#### 1. 完全托管设备（fully_managed）
+### 自定义策略
 
 ```go
-preset := presets.GetFullyManagedPreset()
-
-// 特性：
-// - 企业完全控制设备
-// - 允许必要的设备功能
-// - 强制自动更新
-// - 支持应用管理
-```
-
-#### 2. 专用设备（dedicated_device）
-
-```go
-preset := presets.GetDedicatedDevicePreset()
-
-// 特性：
-// - 锁定模式
-// - 禁用大部分用户设置
-// - 适合固定用途设备
-// - 自动启动指定应用
-```
-
-#### 3. 工作配置文件（work_profile）
-
-```go
-preset := presets.GetWorkProfilePreset()
-
-// 特性：
-// - BYOD 模式
-// - 工作和个人数据分离
-// - 用户保留设备控制权
-// - 企业只管理工作配置文件
-```
-
-#### 4. Kiosk 模式（kiosk_mode）
-
-```go
-preset := presets.GetKioskModePreset()
-
-// 特性：
-// - 单应用模式
-// - 禁用所有系统 UI
-// - 防止退出应用
-// - 适合公共展示
-```
-
-#### 5. 企业拥有个人使用（cope）
-
-```go
-preset := presets.GetCOPEPreset()
-
-// 特性：
-// - 允许个人使用
-// - 企业保留设备所有权
-// - 平衡工作和生活
-// - 可配置使用限制
-```
-
-#### 6. 安全工作站（secure_workstation）
-
-```go
-preset := presets.GetSecureWorkstationPreset()
-
-// 特性：
-// - 最高安全级别
-// - 禁用大部分功能
-// - 强制加密
-// - 严格的应用白名单
-```
-
-#### 7. 教育平板（education_tablet）
-
-```go
-preset := presets.GetEducationTabletPreset()
-
-// 特性：
-// - 适合学校使用
-// - 允许教育应用
-// - 限制社交媒体
-// - 家长控制选项
-```
-
-#### 8. 零售终端（retail_kiosk）
-
-```go
-preset := presets.GetRetailKioskPreset()
-
-// 特性：
-// - 销售终端优化
-// - 客户交互友好
-// - 支付应用支持
-// - 限制非业务功能
-```
-
-### 自定义预设策略
-
-```go
-// 从预设开始，添加自定义配置
-preset := presets.GetFullyManagedPreset()
-policy := preset.Policy.Clone()
+// 从默认策略开始，添加自定义配置
+defaultPolicy := presets.GetDefaultPolicy()
+// 创建策略副本（手动复制需要的字段）
+policy := &androidmanagement.Policy{
+    StatusReportingSettings: defaultPolicy.StatusReportingSettings,
+    UsageLog:                defaultPolicy.UsageLog,
+    CameraDisabled:          true,
+    BluetoothDisabled:       false,
+    WifiDisabled:            false,
+}
 
 // 添加公司应用
-policy.AddApplication(types.NewRequiredApp("com.company.vpn"))
-policy.AddApplication(types.NewRequiredApp("com.company.mail"))
-policy.AddApplication(types.NewRequiredApp("com.company.chat"))
-
-// 阻止特定应用
-policy.AddApplication(types.NewBlockedApp("com.facebook.katana"))
-policy.AddApplication(types.NewBlockedApp("com.instagram.android"))
-
-// 调整设置
-policy.CameraDisabled = true
-policy.BluetoothDisabled = false
-policy.WifiDisabled = false
+if policy.Applications == nil {
+    policy.Applications = []*androidmanagement.ApplicationPolicy{}
+}
+policy.Applications = append(policy.Applications,
+    types.NewRequiredApp("com.company.vpn"),
+    types.NewRequiredApp("com.company.mail"),
+    types.NewRequiredApp("com.company.chat"),
+    types.NewBlockedApp("com.facebook.katana"),
+    types.NewBlockedApp("com.instagram.android"),
+)
 
 // 创建策略
 created, err := c.Policies().CreateByEnterpriseID(
@@ -1075,7 +1008,11 @@ if err != nil {
 }
 
 // 所有操作都会遵守 context 的超时设置
-enterprises, err := c.Enterprises().List(nil)
+    enterprises, err := c.Enterprises().List(
+        "your-project-id",
+        0,  // pageSize
+        "", // pageToken
+    )
 if err != nil {
     if ctx.Err() == context.DeadlineExceeded {
         log.Println("操作超时")
@@ -1102,7 +1039,14 @@ cfg := &config.Config{
 c, err := client.New(cfg)
 
 // API 调用会自动重试（如果遇到可重试的错误）
-devices, err := c.Devices().ListByEnterpriseID("LC00abc123", nil)
+devices, err := c.Devices().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+    "", // state (可选)
+    nil, // policyCompliant (可选)
+    "", // userName (可选)
+)
 // 如果失败，SDK 会自动重试最多 5 次
 ```
 
@@ -1126,7 +1070,14 @@ c, err := client.New(cfg)
 for i := 0; i < 200; i++ {
     // 即使循环 200 次，SDK 也会自动限速
     // 确保不超过每分钟 100 次的限制
-    devices, err := c.Devices().ListByEnterpriseID("LC00abc123", nil)
+    devices, err := c.Devices().ListByEnterpriseID(
+    "LC00abc123",
+    0,  // pageSize
+    "", // pageToken
+    "", // state (可选)
+    nil, // policyCompliant (可选)
+    "", // userName (可选)
+)
     if err != nil {
         log.Printf("错误: %v", err)
     }
@@ -1306,7 +1257,14 @@ c, err := client.New(cfg)
 
 ```go
 // 使用类型断言处理特定错误
-devices, err := c.Devices().ListByEnterpriseID(enterpriseID, nil)
+devices, err := c.Devices().ListByEnterpriseID(
+    enterpriseID,
+    0,  // pageSize
+    "", // pageToken
+    "", // state (可选)
+    nil, // policyCompliant (可选)
+    "", // userName (可选)
+)
 if err != nil {
     if apiErr, ok := err.(*types.Error); ok {
         // 处理 API 特定错误
@@ -1591,21 +1549,24 @@ func main() {
     }
 
     // 4. 生成企业注册 URL
-    signupReq := &types.SignupURLRequest{
-        ProjectID:             cfg.ProjectID,
-        CallbackURL:           cfg.CallbackURL,
-        AdminEmail:            "admin@company.com",
-        EnterpriseDisplayName: "Example Company",
-    }
-
-    signupURL, err := c.Enterprises().GenerateSignupURL(signupReq)
+    signupURL, err := c.Enterprises().GenerateSignupURL(
+        cfg.ProjectID,
+        cfg.CallbackURL,
+        "admin@company.com",
+        "Example Company",
+        "", // locale
+    )
     if err != nil {
         log.Fatal(err)
     }
     log.Printf("注册 URL: %s", signupURL.URL)
 
     // 5. 假设企业已创建，获取企业列表
-    enterprises, err := c.Enterprises().List(nil)
+    enterprises, err := c.Enterprises().List(
+        cfg.ProjectID,
+        0,  // pageSize
+        "", // pageToken
+    )
     if err != nil {
         log.Fatal(err)
     }
@@ -1620,18 +1581,26 @@ func main() {
     log.Printf("使用企业: %s", enterprise.DisplayName)
 
     // 6. 创建策略
-    preset := presets.GetFullyManagedPreset()
-    policy := preset.Policy.Clone()
+    policy := presets.GetDefaultPolicy()
 
-    // 自定义策略
-    policy.AddApplication(types.NewRequiredApp("com.company.vpn"))
-    policy.CameraDisabled = false
-    policy.BluetoothDisabled = false
+    // 自定义策略（需要复制并修改）
+    customPolicy := &androidmanagement.Policy{
+        StatusReportingSettings: policy.StatusReportingSettings,
+        UsageLog:                policy.UsageLog,
+        CameraDisabled:          false,
+        BluetoothDisabled:       false,
+    }
+    // 添加应用
+    if customPolicy.Applications == nil {
+        customPolicy.Applications = []*androidmanagement.ApplicationPolicy{}
+    }
+    customPolicy.Applications = append(customPolicy.Applications,
+        types.NewRequiredApp("com.company.vpn"))
 
     createdPolicy, err := c.Policies().CreateByEnterpriseID(
         enterpriseID,
         "company-policy",
-        policy,
+        customPolicy,
     )
     if err != nil {
         log.Fatal(err)
@@ -1671,7 +1640,14 @@ func main() {
     log.Printf("QR 码数据: %s", qrJSON)
 
     // 9. 列出设备（如果有）
-    devices, err := c.Devices().ListByEnterpriseID(enterpriseID, nil)
+    devices, err := c.Devices().ListByEnterpriseID(
+        enterpriseID,
+        0,  // pageSize
+        "", // pageToken
+        "", // state (可选)
+        nil, // policyCompliant (可选)
+        "", // userName (可选)
+    )
     if err != nil {
         log.Fatal(err)
     }

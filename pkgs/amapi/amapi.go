@@ -107,8 +107,6 @@
 package amapi
 
 import (
-	"time"
-
 	"google.golang.org/api/androidmanagement/v1"
 
 	"amapi-pkg/pkgs/amapi/client"
@@ -216,80 +214,6 @@ type (
 	// 提供详细的错误代码、消息和重试信息。
 	APIError = types.Error
 )
-
-// 请求和响应类型
-//
-// 以下类型用于构造 API 请求。
-
-// CreateEnterpriseRequest 包含创建企业所需的参数。
-type CreateEnterpriseRequest struct {
-	DisplayName  string `json:"display_name"`            // 企业显示名称
-	ProjectID    string `json:"project_id"`              // Google Cloud 项目 ID
-	CallbackURL  string `json:"callback_url,omitempty"`  // 注册完成后的回调 URL
-	PrimaryColor string `json:"primary_color,omitempty"` // 主题颜色（十六进制格式）
-}
-
-// UpdateEnterpriseRequest 包含更新企业信息的参数。
-type UpdateEnterpriseRequest struct {
-	DisplayName  string `json:"display_name,omitempty"`  // 企业显示名称
-	PrimaryColor string `json:"primary_color,omitempty"` // 主题颜色（十六进制格式）
-}
-
-// CreatePolicyRequest 包含创建策略所需的参数。
-type CreatePolicyRequest struct {
-	Name string `json:"name"` // 策略名称/ID
-}
-
-// UpdatePolicyRequest 包含更新策略的参数。
-// 所有字段都是可选的，只更新提供的字段。
-type UpdatePolicyRequest struct {
-	Name                          string `json:"name,omitempty"`                             // 策略名称
-	CameraDisabled                *bool  `json:"camera_disabled,omitempty"`                  // 是否禁用摄像头
-	KioskMode                     *bool  `json:"kiosk_mode,omitempty"`                       // 是否启用 Kiosk 模式
-	BluetoothDisabled             *bool  `json:"bluetooth_disabled,omitempty"`               // 是否禁用蓝牙
-	WifiDisabled                  *bool  `json:"wifi_disabled,omitempty"`                    // 是否禁用 WiFi
-	UsbStorageDisabled            *bool  `json:"usb_storage_disabled,omitempty"`             // 是否禁用 USB 存储
-	InstallUnknownSourcesDisabled *bool  `json:"install_unknown_sources_disabled,omitempty"` // 是否禁止安装未知来源应用
-	DebuggingDisabled             *bool  `json:"debugging_disabled,omitempty"`               // 是否禁用调试功能
-	ScreenCaptureDisabled         *bool  `json:"screen_capture_disabled,omitempty"`          // 是否禁用屏幕截图
-	LocationDisabled              *bool  `json:"location_disabled,omitempty"`                // 是否禁用位置服务
-	MicrophoneDisabled            *bool  `json:"microphone_disabled,omitempty"`              // 是否禁用麦克风
-}
-
-// ListDevicesRequest 包含列出设备的查询参数。
-type ListDevicesRequest struct {
-	PageSize int    `json:"page_size,omitempty"` // 每页返回的设备数量
-	Filter   string `json:"filter,omitempty"`    // 过滤条件（遵循 Google API 过滤语法）
-}
-
-// CreateEnrollmentTokenRequest 包含创建注册令牌的参数。
-type CreateEnrollmentTokenRequest struct {
-	Enterprise  string        `json:"enterprise"`            // 企业名称（格式：enterprises/{enterpriseId}）
-	Policy      string        `json:"policy"`                // 策略名称（格式：enterprises/{enterpriseId}/policies/{policyId}）
-	Duration    time.Duration `json:"duration,omitempty"`    // 令牌有效期（默认 1 小时）
-	WorkProfile bool          `json:"work_profile,omitempty"` // 是否使用工作配置文件模式
-	OneTime     bool          `json:"one_time,omitempty"`     // 是否为一次性令牌
-}
-
-// ListEnrollmentTokensRequest 包含列出注册令牌的查询参数。
-type ListEnrollmentTokensRequest struct {
-	ActiveOnly bool `json:"active_only,omitempty"` // 是否只返回活动的令牌
-}
-
-// QRCodeRequest 包含生成 QR 码的参数。
-type QRCodeRequest struct {
-	WifiSSID     string `json:"wifi_ssid,omitempty"`     // WiFi 网络 SSID
-	WifiPassword string `json:"wifi_password,omitempty"` // WiFi 密码
-	WifiSecurity string `json:"wifi_security,omitempty"` // WiFi 安全类型（WPA2/WPA/开放）
-	SkipSetup    bool   `json:"skip_setup,omitempty"`    // 是否跳过设置向导
-	Locale       string `json:"locale,omitempty"`        // 语言区域设置（如 zh_CN）
-}
-
-// StartLostModeRequest 包含启动丢失模式的参数。
-type StartLostModeRequest struct {
-	Message     string `json:"message,omitempty"`      // 显示在锁屏上的消息
-	PhoneNumber string `json:"phone_number,omitempty"` // 联系电话号码
-}
 
 // NewClient 创建一个新的 Android Management API 客户端。
 //

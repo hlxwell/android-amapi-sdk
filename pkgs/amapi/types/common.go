@@ -2,10 +2,10 @@
 // for the Android Management API client.
 //
 // 这个包提供了：
-//   - 请求和响应类型（如 EnterpriseCreateRequest, PolicyCreateRequest 等）
 //   - 辅助函数（用于操作 androidmanagement 包的类型）
 //   - 常量定义（如错误代码、设备状态等）
 //   - 列表结果类型（用于分页查询）
+//   - 辅助类型（如 EnterpriseSignupURL, EnterpriseUpgradeURL 等）
 //
 // # 核心设计
 //
@@ -17,11 +17,8 @@
 //
 //	import "amapi-pkg/pkgs/amapi/types"
 //
-//	// 使用请求类型
-//	req := &types.EnterpriseCreateRequest{
-//	    DisplayName: "My Enterprise",
-//	    ProjectID:   "my-project",
-//	}
+//	// 直接传递参数给客户端方法，不再使用 Request 类型
+//	enterprise, err := client.Enterprises().Create(signupToken, projectID, enterpriseToken, contactInfo)
 //
 //	// 使用辅助函数
 //	enterpriseID := types.GetEnterpriseID(enterprise)
@@ -34,44 +31,11 @@ import (
 	"time"
 )
 
-// Result represents a generic operation result with optional error handling.
-type Result[T any] struct {
-	Data  *T     `json:"data,omitempty"`
-	Error *Error `json:"error,omitempty"`
-}
-
 // ListResult represents a paginated list result.
 type ListResult[T any] struct {
 	Items         []T    `json:"items"`
 	NextPageToken string `json:"next_page_token,omitempty"`
 	TotalCount    int    `json:"total_count,omitempty"`
-}
-
-// OperationOptions provides common options for API operations.
-type OperationOptions struct {
-	// Timeout for the operation (overrides client default)
-	Timeout *time.Duration `json:"timeout,omitempty"`
-
-	// RetryCount for this specific operation (overrides client default)
-	RetryCount *int `json:"retry_count,omitempty"`
-
-	// Context values to pass through
-	Context map[string]interface{} `json:"context,omitempty"`
-}
-
-// ListOptions provides common options for list operations.
-type ListOptions struct {
-	// PageSize specifies the maximum number of items to return
-	PageSize int `json:"page_size,omitempty"`
-
-	// PageToken for pagination
-	PageToken string `json:"page_token,omitempty"`
-
-	// Filter expression (if supported by the endpoint)
-	Filter string `json:"filter,omitempty"`
-
-	// OrderBy field name (if supported by the endpoint)
-	OrderBy string `json:"order_by,omitempty"`
 }
 
 // ClientInfo provides information about the client and its capabilities.
@@ -81,14 +45,6 @@ type ClientInfo struct {
 	UserAgent    string    `json:"user_agent"`
 	Capabilities []string  `json:"capabilities"`
 	CreatedAt    time.Time `json:"created_at"`
-}
-
-// CallbackData represents data structure for webhook callbacks.
-type CallbackData struct {
-	EnterpriseID   string                 `json:"enterprise_id"`
-	CallbackURL    string                 `json:"callback_url"`
-	CompletionTime time.Time              `json:"completion_time"`
-	Data           map[string]interface{} `json:"data"`
 }
 
 // PolicyMode represents the different policy modes available.

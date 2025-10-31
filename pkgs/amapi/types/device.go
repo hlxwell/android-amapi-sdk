@@ -10,67 +10,19 @@ import (
 //
 // 注意：Device 类型直接使用 androidmanagement.Device，不再定义自定义类型。
 // DeviceCommand 类型也直接使用 androidmanagement.Command。
-// 此文件包含设备相关的请求类型。
 //
 // 使用方式：
 //
 //	import "amapi-pkg/pkgs/amapi/types"
 //
-//	// 列出设备请求
-//	req := &types.DeviceListRequest{
-//	    EnterpriseName: "enterprises/LC00abc123",
-//	    State:          types.DeviceStateActive,
-//	}
+//		// 列出设备直接传递参数
+//	devices, err := client.Devices().List("enterprises/LC00abc123", 0, "", types.DeviceStateActive, nil, "")
 //
 //	// 设备命令使用 androidmanagement.Command
 //	command := &androidmanagement.Command{
 //	    Type: "LOCK",
 //	    Duration: "3600s",
 //	}
-
-// DeviceListRequest represents a request to list devices.
-type DeviceListRequest struct {
-	ListOptions
-
-	// EnterpriseName is the enterprise to list devices for
-	EnterpriseName string `json:"enterprise_name"`
-
-	// Filter by device state
-	State DeviceState `json:"state,omitempty"`
-
-	// Filter by policy compliance
-	PolicyCompliant *bool `json:"policy_compliant,omitempty"`
-
-	// Filter by user name
-	UserName string `json:"user_name,omitempty"`
-}
-
-// DeviceGetRequest represents a request to get a specific device.
-type DeviceGetRequest struct {
-	// Name is the device resource name
-	Name string `json:"name"`
-}
-
-// DeviceCommandRequest represents a request to issue a command to a device.
-type DeviceCommandRequest struct {
-	// DeviceName is the device resource name
-	DeviceName string `json:"device_name"`
-
-	// Command is the command to issue
-	Command *androidmanagement.Command `json:"command"`
-}
-
-// DeviceDeleteRequest represents a request to delete a device.
-type DeviceDeleteRequest struct {
-	// Name is the device resource name
-	Name string `json:"name"`
-
-	// WipeDataFlags for wiping device data
-	WipeDataFlags []string `json:"wipe_data_flags,omitempty"`
-
-	// WipeExternalStorage indicates whether to wipe external storage
-	WipeExternalStorage bool `json:"wipe_external_storage,omitempty"`
-}
 
 // Device helper functions (for androidmanagement.Device)
 
