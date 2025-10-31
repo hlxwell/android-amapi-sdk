@@ -92,7 +92,7 @@ func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*types.
 	enterprise := &androidmanagement.Enterprise{}
 
 	if req.ContactInfo != nil {
-		enterprise.ContactInfo = req.ContactInfo.ToAMAPIContactInfo()
+		enterprise.ContactInfo = req.ContactInfo
 	}
 
 	var result *androidmanagement.Enterprise
@@ -115,7 +115,7 @@ func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*types.
 		return nil, es.client.wrapAPIError(err, "create enterprise")
 	}
 
-	return types.FromAMAPIEnterprise(result), nil
+	return result, nil
 }
 
 // Get retrieves an enterprise by its resource name.
@@ -136,7 +136,7 @@ func (es *EnterpriseService) Get(enterpriseName string) (*types.Enterprise, erro
 		return nil, es.client.wrapAPIError(err, "get enterprise")
 	}
 
-	return types.FromAMAPIEnterprise(result), nil
+	return result, nil
 }
 
 // GetByID retrieves an enterprise by its ID.
@@ -165,48 +165,35 @@ func (es *EnterpriseService) Update(enterpriseName string, req *types.Enterprise
 		return nil, err
 	}
 
-	// Apply updates
-	enterprise := current.ToAMAPIEnterprise()
-
-	// Note: DisplayName is not supported in the androidmanagement.Enterprise struct
-	// It may be part of the name field or handled separately
-
+	// Apply updates directly
 	if req.PrimaryColor != nil {
-		enterprise.PrimaryColor = *req.PrimaryColor
+		current.PrimaryColor = *req.PrimaryColor
 	}
 
 	if req.Logo != nil {
-		enterprise.Logo = req.Logo
+		current.Logo = req.Logo
 	}
 
 	if req.ContactInfo != nil {
-		enterprise.ContactInfo = req.ContactInfo.ToAMAPIContactInfo()
+		current.ContactInfo = req.ContactInfo
 	}
 
 	if req.EnabledNotificationTypes != nil {
-		enterprise.EnabledNotificationTypes = req.EnabledNotificationTypes
+		current.EnabledNotificationTypes = req.EnabledNotificationTypes
 	}
 
 	if req.AppAutoApprovalEnabled != nil {
-		enterprise.AppAutoApprovalEnabled = *req.AppAutoApprovalEnabled
+		current.AppAutoApprovalEnabled = *req.AppAutoApprovalEnabled
 	}
 
 	if req.TermsAndConditions != nil {
-		// Convert terms and conditions
-		terms := make([]*androidmanagement.TermsAndConditions, len(req.TermsAndConditions))
-		for i, tc := range req.TermsAndConditions {
-			terms[i] = &androidmanagement.TermsAndConditions{
-				Content: tc.Content,
-				Header:  tc.Header,
-			}
-		}
-		enterprise.TermsAndConditions = terms
+		current.TermsAndConditions = req.TermsAndConditions
 	}
 
 	var result *androidmanagement.Enterprise
 
 	err = es.client.executeAPICall(func() error {
-		result, err = es.client.service.Enterprises.Patch(enterpriseName, enterprise).Context(es.client.ctx).Do()
+		result, err = es.client.service.Enterprises.Patch(enterpriseName, current).Context(es.client.ctx).Do()
 		return err
 	})
 
@@ -214,11 +201,11 @@ func (es *EnterpriseService) Update(enterpriseName string, req *types.Enterprise
 		return nil, es.client.wrapAPIError(err, "update enterprise")
 	}
 
-	return types.FromAMAPIEnterprise(result), nil
+	return result, nil
 }
 
 // List lists enterprises in the project.
-func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.ListResult[types.Enterprise], error) {
+func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.ListResult[*types.Enterprise], error) {
 	if req == nil {
 		req = &types.EnterpriseListRequest{}
 	}
@@ -250,13 +237,11 @@ func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.List
 		return nil, es.client.wrapAPIError(err, "list enterprises")
 	}
 
-	// Convert results
-	enterprises := make([]types.Enterprise, len(result.Enterprises))
-	for i, enterprise := range result.Enterprises {
-		enterprises[i] = *types.FromAMAPIEnterprise(enterprise)
-	}
+	// Convert results - just use pointers directly
+	enterprises := make([]*types.Enterprise, len(result.Enterprises))
+	copy(enterprises, result.Enterprises)
 
-	return &types.ListResult[types.Enterprise]{
+	return &types.ListResult[*types.Enterprise]{
 		Items:         enterprises,
 		NextPageToken: result.NextPageToken,
 	}, nil
@@ -399,13 +384,12 @@ func (es *EnterpriseService) SetPubSubTopic(enterpriseName, topicName string) (*
 	}
 
 	// Update enterprise with new topic
-	enterprise := current.ToAMAPIEnterprise()
-	enterprise.PubsubTopic = topicName
+	current.PubsubTopic = topicName
 
 	var result *androidmanagement.Enterprise
 
 	err = es.client.executeAPICall(func() error {
-		result, err = es.client.service.Enterprises.Patch(enterpriseName, enterprise).Context(es.client.ctx).Do()
+		result, err = es.client.service.Enterprises.Patch(enterpriseName, current).Context(es.client.ctx).Do()
 		return err
 	})
 
@@ -413,7 +397,7 @@ func (es *EnterpriseService) SetPubSubTopic(enterpriseName, topicName string) (*
 		return nil, es.client.wrapAPIError(err, "set pub/sub topic")
 	}
 
-	return types.FromAMAPIEnterprise(result), nil
+	return result, nil
 }
 
 // GetApplication retrieves a specific application by package name for an enterprise.

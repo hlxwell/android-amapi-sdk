@@ -6,33 +6,29 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// MigrationToken represents a migration token for device migration.
+// MigrationToken extends androidmanagement.MigrationToken with business logic fields.
 type MigrationToken struct {
-	// Name is the resource name of the migration token
-	Name string `json:"name"`
+	*androidmanagement.MigrationToken
 
-	// Value is the migration token value
-	Value string `json:"value"`
-
-	// EnterpriseID is the enterprise this token belongs to
+	// EnterpriseID is the enterprise this token belongs to (derived from Name)
 	EnterpriseID string `json:"enterprise_id"`
 
 	// PolicyName is the policy to apply to migrated devices
 	PolicyName string `json:"policy_name"`
 
-	// CreatedAt is when the token was created
+	// CreatedAt is when the token was created (local tracking)
 	CreatedAt time.Time `json:"created_at"`
 
-	// ExpiresAt is when the token expires
+	// ExpiresAt is when the token expires (business logic)
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// IsActive indicates if the token is still active
+	// IsActive indicates if the token is still active (business logic)
 	IsActive bool `json:"is_active"`
 
-	// DeviceCount is the number of devices that have used this token
+	// DeviceCount is the number of devices that have used this token (statistics)
 	DeviceCount int `json:"device_count"`
 
-	// LastUsedAt is when the token was last used
+	// LastUsedAt is when the token was last used (statistics)
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 }
 
@@ -129,35 +125,3 @@ func (req *MigrationTokenCreateRequest) Validate() error {
 	return nil
 }
 
-// FromAMAPIMigrationToken converts an Android Management API migration token to our type.
-func FromAMAPIMigrationToken(token *androidmanagement.MigrationToken) *MigrationToken {
-	if token == nil {
-		return nil
-	}
-
-	migrationToken := &MigrationToken{
-		Name:      token.Name,
-		Value:     token.Value,
-		CreatedAt: time.Now(), // AMAPI doesn't provide creation time
-		IsActive:  true,       // Assume active if not specified
-	}
-
-	// Extract enterprise ID from name
-	migrationToken.EnterpriseID = migrationToken.GetEnterpriseID()
-
-	return migrationToken
-}
-
-// ToAMAPIMigrationToken converts our migration token to Android Management API format.
-func (mt *MigrationToken) ToAMAPIMigrationToken() *androidmanagement.MigrationToken {
-	if mt == nil {
-		return nil
-	}
-
-	token := &androidmanagement.MigrationToken{
-		Name:  mt.Name,
-		Value: mt.Value,
-	}
-
-	return token
-}

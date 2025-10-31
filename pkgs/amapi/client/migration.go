@@ -44,7 +44,15 @@ func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*typ
 		return nil, ms.client.wrapAPIError(err, "create migration token")
 	}
 
-	return types.FromAMAPIMigrationToken(result), nil
+	// Wrap the result with our extended type
+	wrapped := &types.MigrationToken{
+		MigrationToken: result,
+		CreatedAt:      time.Now(),
+		IsActive:       true,
+	}
+	wrapped.EnterpriseID = wrapped.GetEnterpriseID()
+
+	return wrapped, nil
 }
 
 // CreateByEnterpriseID creates a new migration token using enterprise ID.
@@ -87,7 +95,13 @@ func (ms *MigrationService) Get(tokenName string) (*types.MigrationToken, error)
 		return nil, ms.client.wrapAPIError(err, "get migration token")
 	}
 
-	return types.FromAMAPIMigrationToken(result), nil
+	// Wrap the result with our extended type
+	token := &types.MigrationToken{
+		MigrationToken: result,
+	}
+	token.EnterpriseID = token.GetEnterpriseID()
+
+	return token, nil
 }
 
 // GetByID retrieves a migration token by enterprise ID and token ID.
@@ -135,7 +149,11 @@ func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.L
 	// Convert results
 	tokens := make([]types.MigrationToken, len(result.MigrationTokens))
 	for i, token := range result.MigrationTokens {
-		tokens[i] = *types.FromAMAPIMigrationToken(token)
+		wrapped := types.MigrationToken{
+			MigrationToken: token,
+		}
+		wrapped.EnterpriseID = wrapped.GetEnterpriseID()
+		tokens[i] = wrapped
 	}
 
 	// Apply client-side filtering
