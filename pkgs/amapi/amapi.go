@@ -3,6 +3,14 @@
 // 这个包是 Android Management API 的完整实现，提供了企业移动设备管理的所有功能，
 // 包括企业管理、策略配置、设备控制、注册令牌管理等。
 //
+// # 设计理念
+//
+// 本 SDK 直接使用 google.golang.org/api/androidmanagement/v1 包中的原生类型，
+// 避免不必要的类型转换，提高代码效率和可维护性。所有核心类型（Enterprise、Policy、
+// Device 等）都是 androidmanagement 包类型的别名，可以直接使用。
+//
+// 辅助功能通过 types 包中的工具函数提供，而不是通过自定义类型的方法。
+//
 // # 快速开始
 //
 // 基本用法：
@@ -18,9 +26,14 @@
 //	}
 //	defer c.Close()
 //
-//	enterprises, err := c.Enterprises().List(nil)
+//	// 列出企业
+//	result, err := c.Enterprises().List(nil)
 //	if err != nil {
 //	    log.Fatal(err)
+//	}
+//
+//	for _, enterprise := range result.Items {
+//	    fmt.Printf("Enterprise: %s\n", enterprise.Name)
 //	}
 //
 // # 配置
@@ -29,6 +42,16 @@
 //   - 环境变量
 //   - YAML/JSON 配置文件
 //   - 程序化配置
+//
+// 支持分布式 rate limiting 和 retry 管理（使用 Redis）：
+//
+//	cfg := &config.Config{
+//	    ProjectID:       "your-project-id",
+//	    CredentialsFile: "./sa-key.json",
+//	    RedisAddress:    "localhost:6379",
+//	    UseRedisRateLimit: true,  // 启用分布式 rate limiting
+//	    UseRedisRetry:     true,  // 启用分布式 retry 管理
+//	}
 //
 // 详见 config 包的文档。
 //
@@ -41,18 +64,44 @@
 //
 // 策略管理：
 //   - 创建和更新设备策略
-//   - 使用预设策略模板
+//   - 使用默认策略模板
 //   - 应用管理和限制
 //
 // 设备管理：
 //   - 查询设备信息
-//   - 远程控制设备
+//   - 远程控制设备（锁定、重置、重启等）
 //   - 监控设备合规性
 //
 // 注册令牌：
 //   - 创建注册令牌
 //   - 生成 QR 码
 //   - 管理令牌生命周期
+//
+// # 类型使用
+//
+// 所有核心类型都直接使用 androidmanagement 包的类型：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	var policy *androidmanagement.Policy
+//	// 或者使用别名
+//	var policy amapi.Policy  // 等同于 androidmanagement.Policy
+//
+// 使用辅助函数操作类型：
+//
+//	import "amapi-pkg/pkgs/amapi/types"
+//
+//	// 检查策略是否包含某个应用
+//	hasApp := types.HasApplication(policy, "com.example.app")
+//
+//	// 添加应用到策略
+//	types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+//	    PackageName: "com.example.app",
+//	    InstallType: "REQUIRED",
+//	})
 //
 // 更多信息请参考各子包的文档。
 package amapi
@@ -107,12 +156,26 @@ type Config = config.Config
 
 // 核心类型定义
 //
-// 直接使用 google.golang.org/api/androidmanagement/v1 包中的类型，
-// 避免不必要的类型转换，提高代码效率和可维护性。
+// 以下类型是 google.golang.org/api/androidmanagement/v1 包中原生类型的别名。
+// 直接使用原生类型可以：
+//   - 避免不必要的类型转换
+//   - 提高代码效率和性能
+//   - 保持与 Google SDK 的兼容性
+//   - 简化维护工作
 //
-// 使用 helpers.go 中的辅助函数来操作这些类型。
+// 操作这些类型时，请使用 types 包中的辅助函数：
+//   - types.HasApplication(policy, packageName)
+//   - types.AddApplication(policy, app)
+//   - types.RemoveApplication(policy, packageName)
+//   - types.ValidatePolicy(policy)
+//   - types.GetEnterpriseID(enterprise)
+//   - types.GetPolicyID(policy)
+//   - types.GetDeviceID(device)
+//   - 等等...
+//
+// 更多辅助函数请参考 types 包的文档。
 
-// 类型别名，直接使用 androidmanagement 包的类型
+// 类型别名 - 直接使用 androidmanagement 包的类型
 type (
 	// Enterprise 表示一个企业实体，是设备管理的顶层组织单位。
 	// 每个企业可以包含多个策略、设备和注册令牌。

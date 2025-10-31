@@ -13,6 +13,41 @@ import (
 )
 
 // RedisRetryHandler handles distributed retry logic using Redis to prevent concurrent retries.
+//
+// 使用 Redis 分布式锁防止多个进程同时重试同一操作。
+// 这可以减少重复的 API 调用，特别是在高并发场景下。
+//
+// # 工作原理
+//
+// 1. 每个重试操作生成唯一的 operation ID
+// 2. 尝试获取 Redis 分布式锁（使用 SETNX）
+// 3. 如果获取成功，执行重试操作
+// 4. 如果获取失败，等待一小段时间后检查操作是否已成功
+// 5. 操作完成后释放锁
+//
+// # 使用示例
+//
+//	client := redis.NewClient(&redis.Options{
+//	    Addr: "localhost:6379",
+//	})
+//
+//	handler := NewRedisRetryHandler(client, "amapi:", utils.RetryConfig{
+//	    MaxAttempts: 3,
+//	    BaseDelay:   1 * time.Second,
+//	    MaxDelay:    30 * time.Second,
+//	    EnableRetry: true,
+//	})
+//	defer handler.Close()
+//
+//	operationID := fmt.Sprintf("operation-%d", time.Now().UnixNano())
+//	err := handler.Execute(ctx, operationID, func() error {
+//	    // 执行可能失败的操作
+//	    return someOperation()
+//	})
+//
+// # 重试统计
+//
+// handler 会在 Redis 中记录每个操作的重试次数，可以通过 GetRetryCount 查询。
 type RedisRetryHandler struct {
 	client    *redis.Client
 	keyPrefix string

@@ -6,6 +6,29 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+// EnrollmentToken 相关类型和函数
+//
+// 注意：EnrollmentToken 类型直接使用 androidmanagement.EnrollmentToken。
+// 此文件包含注册令牌相关的请求类型和辅助函数。
+//
+// 使用方式：
+//
+//	import "amapi-pkg/pkgs/amapi/types"
+//
+//	// 创建注册令牌请求
+//	req := &types.EnrollmentTokenCreateRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    PolicyName:     "enterprises/LC00abc123/policies/default",
+//	    Duration:       24 * time.Hour,
+//	    User:           &androidmanagement.User{
+//	        AccountIdentifier: "user@example.com",
+//	    },
+//	}
+//
+//	// 生成 QR 码数据
+//	options := types.NewBasicQRCodeOptions()
+//	qrData := types.GenerateQRCodeData(token, options)
+
 // EnrollmentTokenCreateRequest represents a request to create an enrollment token.
 type EnrollmentTokenCreateRequest struct {
 	// EnterpriseName is the enterprise to create the token for

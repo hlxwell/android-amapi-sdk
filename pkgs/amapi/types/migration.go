@@ -2,13 +2,26 @@ package types
 
 import (
 	"time"
-
-	"google.golang.org/api/androidmanagement/v1"
 )
 
-// MigrationToken is an alias for androidmanagement.MigrationToken.
-// Use androidmanagement.MigrationToken directly for all migration token operations.
-type MigrationToken = androidmanagement.MigrationToken
+// MigrationToken 相关类型和函数
+//
+// 注意：MigrationToken 类型直接使用 androidmanagement.MigrationToken。
+// 此文件包含迁移令牌相关的请求类型。
+//
+// 使用方式：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi/types"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	// 创建迁移令牌请求
+//	req := &types.MigrationTokenCreateRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    PolicyName:     "enterprises/LC00abc123/policies/default",
+//	    Duration:       24 * time.Hour,
+//	}
 
 // MigrationTokenCreateRequest represents a request to create a migration token.
 type MigrationTokenCreateRequest struct {
@@ -57,4 +70,3 @@ func (req *MigrationTokenCreateRequest) Validate() error {
 
 	return nil
 }
-

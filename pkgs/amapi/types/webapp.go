@@ -4,7 +4,24 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Note: WebApp type removed - use androidmanagement.WebApp directly
+// WebApp 相关类型和函数
+//
+// 注意：WebApp 类型直接使用 androidmanagement.WebApp。
+// 此文件包含 Web 应用相关的请求类型。
+//
+// 使用方式：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi/types"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	// 创建 Web 应用请求
+//	req := &types.WebAppCreateRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    DisplayName:    "My Web App",
+//	    StartURL:       "https://example.com",
+//	}
 
 // WebAppCreateRequest represents a request to create a web app.
 type WebAppCreateRequest struct {

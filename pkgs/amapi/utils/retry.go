@@ -10,24 +10,64 @@ import (
 )
 
 // RetryConfig contains configuration for retry behavior.
+//
+// 配置项说明：
+//   - MaxAttempts: 最大重试次数（包括首次尝试）
+//   - BaseDelay: 基础延迟时间（使用指数退避）
+//   - MaxDelay: 最大延迟时间（延迟不会超过此值）
+//   - EnableRetry: 是否启用重试
+//   - Jitter: 是否添加随机抖动（防止惊群效应）
 type RetryConfig struct {
-	// MaxAttempts is the maximum number of retry attempts
+	// MaxAttempts is the maximum number of retry attempts (including the first attempt).
+	// Default: 3
 	MaxAttempts int
 
-	// BaseDelay is the base delay between retry attempts
+	// BaseDelay is the base delay between retry attempts.
+	// Actual delay = baseDelay * 2^attempt (with jitter).
+	// Default: 1 second
 	BaseDelay time.Duration
 
-	// MaxDelay is the maximum delay between retry attempts
+	// MaxDelay is the maximum delay between retry attempts.
+	// The calculated delay will be capped at this value.
+	// Default: 30 seconds
 	MaxDelay time.Duration
 
-	// EnableRetry indicates if retry is enabled
+	// EnableRetry indicates if retry is enabled.
+	// If false, operations will only be attempted once.
+	// Default: true
 	EnableRetry bool
 
-	// Jitter adds randomness to delays to prevent thundering herd
+	// Jitter adds randomness to delays to prevent thundering herd.
+	// Adds up to 10% random jitter to the delay.
+	// Default: true
 	Jitter bool
 }
 
 // RetryHandler handles retry logic for API operations.
+//
+// 本地 retry handler，适用于单进程应用。
+// 使用指数退避算法，带有随机抖动以防止惊群效应。
+//
+// # 使用示例
+//
+//	handler := NewRetryHandler(utils.RetryConfig{
+//	    MaxAttempts: 3,
+//	    BaseDelay:   1 * time.Second,
+//	    MaxDelay:    30 * time.Second,
+//	    EnableRetry: true,
+//	})
+//	defer handler.Close()
+//
+//	operationID := "unique-operation-id"
+//	err := handler.Execute(ctx, operationID, func() error {
+//	    // 执行可能失败的操作
+//	    return someAPI.Call()
+//	})
+//
+// # 分布式场景
+//
+// 如果您的应用程序运行多个进程，请使用 RedisRetryHandler 代替，
+// 以防止多个进程同时重试同一操作。
 type RetryHandler struct {
 	config RetryConfig
 }

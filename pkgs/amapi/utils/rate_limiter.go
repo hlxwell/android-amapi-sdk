@@ -6,7 +6,31 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// RateLimiter provides rate limiting functionality.
+// RateLimiter provides local rate limiting functionality.
+//
+// 使用 golang.org/x/time/rate 包实现的本地 rate limiter。
+// 适用于单进程应用，或者不需要跨进程协调的场景。
+//
+// # 使用示例
+//
+//	limiter := NewRateLimiter(100, 20) // 100 req/min, burst 20
+//	defer limiter.Close()
+//
+//	// 等待直到允许请求
+//	err := limiter.Wait(ctx)
+//	if err != nil {
+//	    return err
+//	}
+//
+//	// 或者检查是否允许（不等待）
+//	if limiter.Allow(ctx) {
+//	    // 执行请求
+//	}
+//
+// # 分布式场景
+//
+// 如果您的应用程序运行多个进程，请使用 RedisRateLimiter 代替，
+// 以确所有进程共享同一个 rate limit。
 type RateLimiter struct {
 	limiter *rate.Limiter
 }

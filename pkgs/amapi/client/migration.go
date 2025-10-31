@@ -19,7 +19,7 @@ func (c *Client) MigrationTokens() *MigrationService {
 }
 
 // Create creates a new migration token.
-func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*types.MigrationToken, error) {
+func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*androidmanagement.MigrationToken, error) {
 	if req == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "migration token create request is required")
 	}
@@ -48,7 +48,7 @@ func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*typ
 }
 
 // CreateByEnterpriseID creates a new migration token using enterprise ID.
-func (ms *MigrationService) CreateByEnterpriseID(enterpriseID, policyID string, duration time.Duration) (*types.MigrationToken, error) {
+func (ms *MigrationService) CreateByEnterpriseID(enterpriseID, policyID string, duration time.Duration) (*androidmanagement.MigrationToken, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (ms *MigrationService) CreateByEnterpriseID(enterpriseID, policyID string, 
 }
 
 // Get retrieves a migration token by its resource name.
-func (ms *MigrationService) Get(tokenName string) (*types.MigrationToken, error) {
+func (ms *MigrationService) Get(tokenName string) (*androidmanagement.MigrationToken, error) {
 	if tokenName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "migration token name is required")
 	}
@@ -91,7 +91,7 @@ func (ms *MigrationService) Get(tokenName string) (*types.MigrationToken, error)
 }
 
 // GetByID retrieves a migration token by enterprise ID and token ID.
-func (ms *MigrationService) GetByID(enterpriseID, tokenID string) (*types.MigrationToken, error) {
+func (ms *MigrationService) GetByID(enterpriseID, tokenID string) (*androidmanagement.MigrationToken, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (ms *MigrationService) GetByID(enterpriseID, tokenID string) (*types.Migrat
 }
 
 // List lists migration tokens for an enterprise.
-func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.ListResult[*types.MigrationToken], error) {
+func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.ListResult[*androidmanagement.MigrationToken], error) {
 	if req == nil || req.EnterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
@@ -132,18 +132,18 @@ func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.L
 		return nil, ms.client.wrapAPIError(err, "list migration tokens")
 	}
 
-	// Convert results - use pointers directly
-	tokens := make([]*types.MigrationToken, len(result.MigrationTokens))
+	// Return results directly
+	tokens := make([]*androidmanagement.MigrationToken, len(result.MigrationTokens))
 	copy(tokens, result.MigrationTokens)
 
-	return &types.ListResult[*types.MigrationToken]{
+	return &types.ListResult[*androidmanagement.MigrationToken]{
 		Items:         tokens,
 		NextPageToken: result.NextPageToken,
 	}, nil
 }
 
 // ListByEnterpriseID lists migration tokens for an enterprise by enterprise ID.
-func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*types.MigrationToken], error) {
+func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.MigrationToken], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (ms *MigrationService) DeleteByID(enterpriseID, tokenID string) error {
 
 // GetActiveTokens returns all migration tokens for an enterprise.
 // Note: Filtering by active status is no longer supported since we use Google's native type.
-func (ms *MigrationService) GetActiveTokens(enterpriseID string) (*types.ListResult[*types.MigrationToken], error) {
+func (ms *MigrationService) GetActiveTokens(enterpriseID string) (*types.ListResult[*androidmanagement.MigrationToken], error) {
 	req := &types.MigrationTokenListRequest{
 		EnterpriseName: buildEnterpriseName(enterpriseID),
 	}

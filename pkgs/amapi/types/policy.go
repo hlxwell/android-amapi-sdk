@@ -4,8 +4,31 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Note: Policy type is now directly using androidmanagement.Policy.
-// This file only contains request types and helper functions.
+// Policy 相关类型和函数
+//
+// 注意：Policy 类型直接使用 androidmanagement.Policy，不再定义自定义类型。
+// 此文件包含请求类型和操作 Policy 的辅助函数。
+//
+// 使用方式：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi/types"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	// 创建策略请求
+//	req := &types.PolicyCreateRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    PolicyID:       "default-policy",
+//	    Policy:         &androidmanagement.Policy{
+//	        // ... 策略配置
+//	    },
+//	}
+//
+//	// 使用辅助函数操作策略
+//	types.AddApplication(policy, app)
+//	types.RemoveApplication(policy, "com.example.app")
+//	err := types.ValidatePolicy(policy)
 
 // PolicyCreateRequest represents a request to create a policy.
 type PolicyCreateRequest struct {

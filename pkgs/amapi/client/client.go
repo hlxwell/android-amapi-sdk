@@ -1,4 +1,52 @@
 // Package client provides a high-level client for the Android Management API.
+//
+// 这个包实现了 Android Management API 的核心客户端功能，包括：
+//
+//   - 认证和连接管理
+//   - 自动重试机制（支持本地和分布式 Redis 实现）
+//   - 速率限制（支持本地和分布式 Redis 实现）
+//   - 错误处理和包装
+//   - 资源清理
+//
+// # 快速开始
+//
+//	cfg := &config.Config{
+//	    ProjectID:       "your-project-id",
+//	    CredentialsFile: "./sa-key.json",
+//	}
+//
+//	client, err := New(cfg)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer client.Close()
+//
+// # 分布式 Rate Limiting 和 Retry
+//
+// 当您的应用程序运行多个进程时，可以使用 Redis 实现分布式的 rate limiting 和 retry 管理：
+//
+//	cfg := &config.Config{
+//	    ProjectID:        "your-project-id",
+//	    CredentialsFile:  "./sa-key.json",
+//	    RedisAddress:     "localhost:6379",
+//	    UseRedisRateLimit: true,  // 所有进程共享同一个 rate limit
+//	    UseRedisRetry:     true,  // 防止多个进程同时重试同一操作
+//	}
+//
+// 这样所有进程会共享同一个 rate limit，确保不会超过 API 的限制。
+//
+// # 服务访问
+//
+// 客户端提供了多个服务访问方法：
+//
+//	enterprises := client.Enterprises()
+//	policies := client.Policies()
+//	devices := client.Devices()
+//	enrollment := client.EnrollmentTokens()
+//
+// 每个服务都有完整的 CRUD 操作方法。
+//
+// 更多详细信息请参考各服务类型的文档。
 package client
 
 import (
@@ -22,6 +70,28 @@ import (
 )
 
 // Client represents the Android Management API client.
+//
+// Client 提供了访问 Android Management API 的所有方法。
+// 它是线程安全的，可以在多个 goroutine 中并发使用。
+//
+// 使用 New 或 NewWithContext 创建客户端实例。
+// 在使用完毕后，务必调用 Close() 方法释放资源（包括 Redis 连接）。
+//
+// 示例：
+//
+//	client, err := New(cfg)
+//	if err != nil {
+//	    return err
+//	}
+//	defer client.Close()  // 确保释放资源
+//
+//	// 使用客户端
+//	enterprises, err := client.Enterprises().List(nil)
+//
+// # 分布式支持
+//
+// 如果配置了 Redis，Client 会自动使用 Redis 实现分布式的 rate limiting 和 retry 管理。
+// 这对于多进程部署非常重要，可以确保所有进程共享同一个 rate limit。
 type Client struct {
 	// service is the underlying Android Management API service
 	service *androidmanagement.Service
@@ -35,13 +105,13 @@ type Client struct {
 	// httpClient is the HTTP client used for requests
 	httpClient *http.Client
 
-	// retryHandler handles retry logic
+	// retryHandler handles retry logic (local or Redis-based)
 	retryHandler utils.RetryHandlerInterface
 
-	// rateLimiter handles rate limiting
+	// rateLimiter handles rate limiting (local or Redis-based)
 	rateLimiter utils.RateLimiterInterface
 
-	// redisClient is the Redis client (if using Redis)
+	// redisClient is the Redis client (if using Redis for distributed rate limiting/retry)
 	redisClient *redis.Client
 
 	// info contains client information
@@ -49,6 +119,38 @@ type Client struct {
 }
 
 // New creates a new Android Management API client.
+//
+// 根据配置创建客户端实例，支持：
+//   - 本地 rate limiting 和 retry（默认）
+//   - 分布式 Redis rate limiting 和 retry（如果配置了 Redis）
+//
+// 如果配置了 RedisAddress，会自动尝试连接 Redis 并验证连接。
+// 如果 Redis 连接失败，会返回错误。
+//
+// 使用示例：
+//
+//	cfg := &config.Config{
+//	    ProjectID:       "your-project-id",
+//	    CredentialsFile: "./sa-key.json",
+//	}
+//
+//	client, err := New(cfg)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer client.Close()
+//
+// 使用分布式 Redis：
+//
+//	cfg := &config.Config{
+//	    ProjectID:        "your-project-id",
+//	    CredentialsFile:  "./sa-key.json",
+//	    RedisAddress:     "localhost:6379",
+//	    UseRedisRateLimit: true,
+//	    UseRedisRetry:     true,
+//	}
+//
+//	client, err := New(cfg)
 func New(cfg *config.Config) (*Client, error) {
 	if cfg == nil {
 		return nil, types.NewError(types.ErrCodeConfiguration, "configuration is required")
@@ -142,6 +244,16 @@ func New(cfg *config.Config) (*Client, error) {
 }
 
 // NewWithContext creates a new Android Management API client with the specified context.
+//
+// 与 New 功能相同，但使用指定的 context 而不是默认的 Background context。
+// 这对于需要超时控制或取消操作的场景很有用。
+//
+// 示例：
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	defer cancel()
+//
+//	client, err := NewWithContext(ctx, cfg)
 func NewWithContext(ctx context.Context, cfg *config.Config) (*Client, error) {
 	client, err := New(cfg)
 	if err != nil {

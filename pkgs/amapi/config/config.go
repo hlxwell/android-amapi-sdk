@@ -35,14 +35,14 @@
 // # 配置文件搜索路径
 //
 // AutoLoadConfig 会按以下顺序搜索配置文件：
-//   1. ./config.yaml
-//   2. ./config.yml
-//   3. ./amapi.yaml
-//   4. ./amapi.yml
-//   5. ~/.config/amapi/config.yaml
-//   6. ~/.config/amapi/config.yml
-//   7. /etc/amapi/config.yaml
-//   8. /etc/amapi/config.yml
+//  1. ./config.yaml
+//  2. ./config.yml
+//  3. ./amapi.yaml
+//  4. ./amapi.yml
+//  5. ~/.config/amapi/config.yaml
+//  6. ~/.config/amapi/config.yml
+//  7. /etc/amapi/config.yaml
+//  8. /etc/amapi/config.yml
 //
 // # 环境变量
 //
@@ -162,37 +162,61 @@ type Config struct {
 	RateBurst int `yaml:"rate_burst" json:"rate_burst"`
 
 	// Redis 配置（用于分布式 rate limiting 和 retry 管理）
+	//
+	// 当您的应用程序运行多个进程时，使用 Redis 可以实现分布式的 rate limiting 和 retry 管理，
+	// 确保所有进程共享同一个 rate limit，避免超过 API 限制。
+	//
+	// 使用示例：
+	//
+	//	cfg := &Config{
+	//	    ProjectID:        "your-project-id",
+	//	    CredentialsFile:  "./sa-key.json",
+	//	    RedisAddress:     "localhost:6379",
+	//	    UseRedisRateLimit: true,  // 启用分布式 rate limiting
+	//	    UseRedisRetry:     true,  // 启用分布式 retry 管理
+	//	}
+	//
+	// 更多信息请参考 docs/redis-distributed-limits.md
 
 	// RedisAddress 是 Redis 服务器地址（格式：host:port）。
 	// 如果设置，将使用 Redis 实现分布式的 rate limiting 和 retry 管理。
 	// 可通过环境变量 AMAPI_REDIS_ADDRESS 设置。
+	// 示例："localhost:6379" 或 "redis.example.com:6379"
 	RedisAddress string `yaml:"redis_address" json:"redis_address"`
 
 	// RedisPassword 是 Redis 服务器密码（可选）。
+	// 如果 Redis 服务器需要认证，请设置此字段。
 	// 可通过环境变量 AMAPI_REDIS_PASSWORD 设置。
 	RedisPassword string `yaml:"redis_password" json:"redis_password"`
 
-	// RedisDB 是 Redis 数据库编号。
+	// RedisDB 是 Redis 数据库编号（0-15）。
 	// 默认为 0。
 	// 可通过环境变量 AMAPI_REDIS_DB 设置。
+	// 使用不同的数据库编号可以在同一 Redis 实例中隔离不同的环境。
 	RedisDB int `yaml:"redis_db" json:"redis_db"`
 
 	// RedisKeyPrefix 是 Redis key 的前缀。
-	// 用于区分不同项目或环境的 key。
+	// 用于区分不同项目或环境的 key，避免 key 冲突。
 	// 默认为 "amapi:"。
 	// 可通过环境变量 AMAPI_REDIS_KEY_PREFIX 设置。
+	// 示例："amapi:prod:" 或 "project1:amapi:"
 	RedisKeyPrefix string `yaml:"redis_key_prefix" json:"redis_key_prefix"`
 
 	// UseRedisRateLimit 控制是否使用 Redis 进行分布式 rate limiting。
-	// 如果 RedisAddress 未设置，此选项无效。
+	// 如果 RedisAddress 未设置，此选项无效，将使用本地 rate limiter。
 	// 默认为 false。
 	// 可通过环境变量 AMAPI_USE_REDIS_RATE_LIMIT 设置。
+	//
+	// 启用后，所有进程会共享同一个 rate limit（由 RateLimit 配置项指定），
+	// 确保总请求数不会超过限制。
 	UseRedisRateLimit bool `yaml:"use_redis_rate_limit" json:"use_redis_rate_limit"`
 
 	// UseRedisRetry 控制是否使用 Redis 进行分布式 retry 管理。
-	// 如果 RedisAddress 未设置，此选项无效。
+	// 如果 RedisAddress 未设置，此选项无效，将使用本地 retry handler。
 	// 默认为 false。
 	// 可通过环境变量 AMAPI_USE_REDIS_RETRY 设置。
+	//
+	// 启用后，多个进程不会同时重试同一个失败的操作，减少重复的 API 调用。
 	UseRedisRetry bool `yaml:"use_redis_retry" json:"use_redis_retry"`
 }
 
@@ -219,20 +243,20 @@ func DefaultConfig() *Config {
 		Scopes: []string{
 			"https://www.googleapis.com/auth/androidmanagement",
 		},
-		Timeout:                30 * time.Second,
-		RetryAttempts:         3,
-		RetryDelay:            1 * time.Second,
-		EnableRetry:           true,
-		EnableCache:           false,
-		CacheTTL:              5 * time.Minute,
-		LogLevel:              "info",
-		EnableDebugLogging:    false,
-		RateLimit:             100,
-		RateBurst:             10,
-		RedisDB:               0,
-		RedisKeyPrefix:        "amapi:",
-		UseRedisRateLimit:     false,
-		UseRedisRetry:         false,
+		Timeout:            30 * time.Second,
+		RetryAttempts:      3,
+		RetryDelay:         1 * time.Second,
+		EnableRetry:        true,
+		EnableCache:        false,
+		CacheTTL:           5 * time.Minute,
+		LogLevel:           "info",
+		EnableDebugLogging: false,
+		RateLimit:          100,
+		RateBurst:          10,
+		RedisDB:            0,
+		RedisKeyPrefix:     "amapi:",
+		UseRedisRateLimit:  false,
+		UseRedisRetry:      false,
 	}
 }
 

@@ -75,7 +75,7 @@ func (es *EnterpriseService) GenerateSignupURL(req *types.SignupURLRequest) (*ty
 }
 
 // Create creates a new enterprise.
-func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*types.Enterprise, error) {
+func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*androidmanagement.Enterprise, error) {
 	if req == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise create request is required")
 	}
@@ -119,7 +119,7 @@ func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*types.
 }
 
 // Get retrieves an enterprise by its resource name.
-func (es *EnterpriseService) Get(enterpriseName string) (*types.Enterprise, error) {
+func (es *EnterpriseService) Get(enterpriseName string) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
 	}
@@ -140,7 +140,7 @@ func (es *EnterpriseService) Get(enterpriseName string) (*types.Enterprise, erro
 }
 
 // GetByID retrieves an enterprise by its ID.
-func (es *EnterpriseService) GetByID(enterpriseID string) (*types.Enterprise, error) {
+func (es *EnterpriseService) GetByID(enterpriseID string) (*androidmanagement.Enterprise, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (es *EnterpriseService) GetByID(enterpriseID string) (*types.Enterprise, er
 }
 
 // Update updates an enterprise.
-func (es *EnterpriseService) Update(enterpriseName string, req *types.EnterpriseUpdateRequest) (*types.Enterprise, error) {
+func (es *EnterpriseService) Update(enterpriseName string, req *types.EnterpriseUpdateRequest) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
 	}
@@ -205,7 +205,7 @@ func (es *EnterpriseService) Update(enterpriseName string, req *types.Enterprise
 }
 
 // List lists enterprises in the project.
-func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.ListResult[*types.Enterprise], error) {
+func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.ListResult[*androidmanagement.Enterprise], error) {
 	if req == nil {
 		req = &types.EnterpriseListRequest{}
 	}
@@ -237,11 +237,11 @@ func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.List
 		return nil, es.client.wrapAPIError(err, "list enterprises")
 	}
 
-	// Convert results - just use pointers directly
-	enterprises := make([]*types.Enterprise, len(result.Enterprises))
+	// Return results directly
+	enterprises := make([]*androidmanagement.Enterprise, len(result.Enterprises))
 	copy(enterprises, result.Enterprises)
 
-	return &types.ListResult[*types.Enterprise]{
+	return &types.ListResult[*androidmanagement.Enterprise]{
 		Items:         enterprises,
 		NextPageToken: result.NextPageToken,
 	}, nil
@@ -279,7 +279,7 @@ func (es *EnterpriseService) DeleteByID(enterpriseID string, force bool) error {
 }
 
 // CompleteSignup completes the enterprise signup process.
-func (es *EnterpriseService) CompleteSignup(signupToken, enterpriseToken string) (*types.Enterprise, error) {
+func (es *EnterpriseService) CompleteSignup(signupToken, enterpriseToken string) (*androidmanagement.Enterprise, error) {
 	if signupToken == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "signup token is required")
 	}
@@ -294,7 +294,7 @@ func (es *EnterpriseService) CompleteSignup(signupToken, enterpriseToken string)
 }
 
 // EnableNotifications enables specific notification types for an enterprise.
-func (es *EnterpriseService) EnableNotifications(enterpriseName string, notificationTypes []string) (*types.Enterprise, error) {
+func (es *EnterpriseService) EnableNotifications(enterpriseName string, notificationTypes []string) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
 	}
@@ -332,7 +332,7 @@ func (es *EnterpriseService) EnableNotifications(enterpriseName string, notifica
 }
 
 // DisableNotifications disables specific notification types for an enterprise.
-func (es *EnterpriseService) DisableNotifications(enterpriseName string, notificationTypes []string) (*types.Enterprise, error) {
+func (es *EnterpriseService) DisableNotifications(enterpriseName string, notificationTypes []string) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
 	}
@@ -368,7 +368,7 @@ func (es *EnterpriseService) DisableNotifications(enterpriseName string, notific
 }
 
 // SetPubSubTopic sets the Pub/Sub topic for enterprise notifications.
-func (es *EnterpriseService) SetPubSubTopic(enterpriseName, topicName string) (*types.Enterprise, error) {
+func (es *EnterpriseService) SetPubSubTopic(enterpriseName, topicName string) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
 	}

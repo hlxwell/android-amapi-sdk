@@ -10,6 +10,36 @@ import (
 )
 
 // RedisRateLimiter provides distributed rate limiting using Redis.
+//
+// 使用 Redis 的滑动窗口计数器算法实现分布式的 rate limiting。
+// 所有使用同一个 Redis 实例的进程会共享同一个 rate limit。
+//
+// # 工作原理
+//
+// 1. 每个请求在 Redis sorted set 中记录一个带时间戳的条目
+// 2. 定期清理超出时间窗口（1分钟）的旧条目
+// 3. 统计当前时间窗口内的请求数
+// 4. 如果超过限制，等待直到有足够的配额
+//
+// # 使用示例
+//
+//	client := redis.NewClient(&redis.Options{
+//	    Addr: "localhost:6379",
+//	})
+//
+//	limiter := NewRedisRateLimiter(client, "amapi:", 100, 20)
+//	defer limiter.Close()
+//
+//	// 等待直到允许请求
+//	err := limiter.Wait(ctx)
+//	if err != nil {
+//	    return err
+//	}
+//
+//	// 或者检查是否允许（不等待）
+//	if limiter.Allow(ctx) {
+//	    // 执行请求
+//	}
 type RedisRateLimiter struct {
 	client    *redis.Client
 	keyPrefix string

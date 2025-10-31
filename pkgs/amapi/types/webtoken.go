@@ -6,7 +6,23 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Note: WebToken type removed - use androidmanagement.WebToken directly
+// WebToken 相关类型和函数
+//
+// 注意：WebToken 类型直接使用 androidmanagement.WebToken。
+// 此文件包含 Web 令牌相关的请求类型。
+//
+// 使用方式：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi/types"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	// 创建 Web 令牌请求
+//	req := &types.WebTokenCreateRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    Duration:       1 * time.Hour,
+//	}
 
 // WebTokenCreateRequest represents a request to create a web token.
 type WebTokenCreateRequest struct {

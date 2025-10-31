@@ -1,4 +1,33 @@
-// Package types provides type definitions for the Android Management API client.
+// Package types provides type definitions, request/response types, and helper functions
+// for the Android Management API client.
+//
+// 这个包提供了：
+//   - 请求和响应类型（如 EnterpriseCreateRequest, PolicyCreateRequest 等）
+//   - 辅助函数（用于操作 androidmanagement 包的类型）
+//   - 常量定义（如错误代码、设备状态等）
+//   - 列表结果类型（用于分页查询）
+//
+// # 核心设计
+//
+// 本包不再定义自定义的核心类型（如 Policy、Device、Enterprise 等），
+// 而是直接使用 google.golang.org/api/androidmanagement/v1 包中的原生类型。
+// 所有工具函数都是独立函数，接受 androidmanagement 类型作为参数。
+//
+// # 使用方式
+//
+//	import "amapi-pkg/pkgs/amapi/types"
+//
+//	// 使用请求类型
+//	req := &types.EnterpriseCreateRequest{
+//	    DisplayName: "My Enterprise",
+//	    ProjectID:   "my-project",
+//	}
+//
+//	// 使用辅助函数
+//	enterpriseID := types.GetEnterpriseID(enterprise)
+//	policyID := types.GetPolicyID(policy)
+//
+// 更多详细信息请参考各个类型和函数的文档。
 package types
 
 import (
@@ -47,11 +76,11 @@ type ListOptions struct {
 
 // ClientInfo provides information about the client and its capabilities.
 type ClientInfo struct {
-	Version     string    `json:"version"`
-	ProjectID   string    `json:"project_id"`
-	UserAgent   string    `json:"user_agent"`
-	Capabilities []string `json:"capabilities"`
-	CreatedAt   time.Time `json:"created_at"`
+	Version      string    `json:"version"`
+	ProjectID    string    `json:"project_id"`
+	UserAgent    string    `json:"user_agent"`
+	Capabilities []string  `json:"capabilities"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // CallbackData represents data structure for webhook callbacks.
@@ -75,9 +104,9 @@ const (
 type DeviceState string
 
 const (
-	DeviceStateActive      DeviceState = "ACTIVE"
-	DeviceStateDisabled    DeviceState = "DISABLED"
-	DeviceStateDeleted     DeviceState = "DELETED"
+	DeviceStateActive       DeviceState = "ACTIVE"
+	DeviceStateDisabled     DeviceState = "DISABLED"
+	DeviceStateDeleted      DeviceState = "DELETED"
 	DeviceStateProvisioning DeviceState = "PROVISIONING"
 )
 
@@ -85,33 +114,33 @@ const (
 type ApplicationInstallType string
 
 const (
-	InstallTypeRequired           ApplicationInstallType = "REQUIRED"
-	InstallTypePreinstalled      ApplicationInstallType = "PREINSTALLED"
-	InstallTypeBlocked           ApplicationInstallType = "BLOCKED"
-	InstallTypeAvailable         ApplicationInstallType = "AVAILABLE"
-	InstallTypeRequiredForSetup  ApplicationInstallType = "REQUIRED_FOR_SETUP"
-	InstallTypeKiosk             ApplicationInstallType = "KIOSK"
+	InstallTypeRequired         ApplicationInstallType = "REQUIRED"
+	InstallTypePreinstalled     ApplicationInstallType = "PREINSTALLED"
+	InstallTypeBlocked          ApplicationInstallType = "BLOCKED"
+	InstallTypeAvailable        ApplicationInstallType = "AVAILABLE"
+	InstallTypeRequiredForSetup ApplicationInstallType = "REQUIRED_FOR_SETUP"
+	InstallTypeKiosk            ApplicationInstallType = "KIOSK"
 )
 
 // CommandType represents the type of command that can be issued to a device.
 type CommandType string
 
 const (
-	CommandTypeLock               CommandType = "LOCK"
-	CommandTypeReset              CommandType = "RESET"
-	CommandTypeReboot             CommandType = "REBOOT"
-	CommandTypeRemovePassword     CommandType = "REMOVE_PASSWORD"
-	CommandTypeClearAppData       CommandType = "CLEAR_APP_DATA"
-	CommandTypeStartLostMode      CommandType = "START_LOST_MODE"
-	CommandTypeStopLostMode       CommandType = "STOP_LOST_MODE"
+	CommandTypeLock           CommandType = "LOCK"
+	CommandTypeReset          CommandType = "RESET"
+	CommandTypeReboot         CommandType = "REBOOT"
+	CommandTypeRemovePassword CommandType = "REMOVE_PASSWORD"
+	CommandTypeClearAppData   CommandType = "CLEAR_APP_DATA"
+	CommandTypeStartLostMode  CommandType = "START_LOST_MODE"
+	CommandTypeStopLostMode   CommandType = "STOP_LOST_MODE"
 )
 
 // EnrollmentTokenType represents the type of enrollment token.
 type EnrollmentTokenType string
 
 const (
-	EnrollmentTypeDefault     EnrollmentTokenType = "userlessDeviceProvisioning"
-	EnrollmentTypeUserless    EnrollmentTokenType = "userlessDeviceProvisioning"
+	EnrollmentTypeDefault      EnrollmentTokenType = "userlessDeviceProvisioning"
+	EnrollmentTypeUserless     EnrollmentTokenType = "userlessDeviceProvisioning"
 	EnrollmentTypePersonalWork EnrollmentTokenType = "personalWorkDeviceProvisioning"
 )
 

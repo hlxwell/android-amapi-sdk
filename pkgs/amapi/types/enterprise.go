@@ -6,9 +6,26 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Enterprise is an alias for androidmanagement.Enterprise.
-// Use androidmanagement.Enterprise directly for all enterprise operations.
-type Enterprise = androidmanagement.Enterprise
+// Enterprise 相关类型和函数
+//
+// 注意：Enterprise 类型直接使用 androidmanagement.Enterprise。
+// 此文件包含企业相关的请求类型和辅助类型。
+//
+// 使用方式：
+//
+//	import (
+//	    "amapi-pkg/pkgs/amapi/types"
+//	    "google.golang.org/api/androidmanagement/v1"
+//	)
+//
+//	// 创建企业请求
+//	req := &types.EnterpriseCreateRequest{
+//	    DisplayName: "My Enterprise",
+//	    ProjectID:   "my-project",
+//	}
+//
+//	// Enterprise 类型直接使用 androidmanagement.Enterprise
+//	var enterprise *androidmanagement.Enterprise
 
 // EnterpriseSignupURL represents a signup URL for enterprise creation.
 type EnterpriseSignupURL struct {
@@ -146,9 +163,9 @@ type EnterpriseDeleteRequest struct {
 
 // Notification type constants
 const (
-	NotificationTypeEnrollment          = "ENROLLMENT"
-	NotificationTypeComplianceReport    = "COMPLIANCE_REPORT"
-	NotificationTypeStatusReport        = "STATUS_REPORT"
-	NotificationTypeCommand             = "COMMAND"
-	NotificationTypeUsageLog            = "USAGE_LOG_ENABLED"
+	NotificationTypeEnrollment       = "ENROLLMENT"
+	NotificationTypeComplianceReport = "COMPLIANCE_REPORT"
+	NotificationTypeStatusReport     = "STATUS_REPORT"
+	NotificationTypeCommand          = "COMMAND"
+	NotificationTypeUsageLog         = "USAGE_LOG_ENABLED"
 )

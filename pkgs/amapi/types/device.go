@@ -6,8 +6,27 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Note: Device type removed - use androidmanagement.Device directly
-// Note: DeviceCommand type removed - use androidmanagement.Command directly
+// Device 相关类型和函数
+//
+// 注意：Device 类型直接使用 androidmanagement.Device，不再定义自定义类型。
+// DeviceCommand 类型也直接使用 androidmanagement.Command。
+// 此文件包含设备相关的请求类型。
+//
+// 使用方式：
+//
+//	import "amapi-pkg/pkgs/amapi/types"
+//
+//	// 列出设备请求
+//	req := &types.DeviceListRequest{
+//	    EnterpriseName: "enterprises/LC00abc123",
+//	    State:          types.DeviceStateActive,
+//	}
+//
+//	// 设备命令使用 androidmanagement.Command
+//	command := &androidmanagement.Command{
+//	    Type: "LOCK",
+//	    Duration: "3600s",
+//	}
 
 // DeviceListRequest represents a request to list devices.
 type DeviceListRequest struct {
