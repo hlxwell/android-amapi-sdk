@@ -57,47 +57,35 @@ import (
 
 // GetEnterpriseID extracts the enterprise ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 // For more complex parsing, use ParseResourceNameStruct() directly.
 func GetEnterpriseID(enterprise *androidmanagement.Enterprise) string {
 	if enterprise == nil || enterprise.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(enterprise.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(enterprise.Name, "EnterpriseID")
 }
 
 // Helper functions for androidmanagement.EnrollmentToken
 
 // GetEnrollmentTokenID extracts the token ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetEnrollmentTokenID(token *androidmanagement.EnrollmentToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnrollmentTokenID
+	return ExtractResourceField(token.Name, "EnrollmentTokenID")
 }
 
 // GetEnrollmentTokenEnterpriseID extracts the enterprise ID from the token resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetEnrollmentTokenEnterpriseID(token *androidmanagement.EnrollmentToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(token.Name, "EnterpriseID")
 }
 
 // IsEnrollmentTokenExpired checks if the enrollment token has expired.

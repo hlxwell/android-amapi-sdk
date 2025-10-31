@@ -21,7 +21,7 @@ import (
 //   - "signupUrls/{signupUrlId}"
 //   - "enterprises/{enterpriseId}/devices/{deviceId}/provisioningInfo"
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetProvisioningInfoName(info *androidmanagement.ProvisioningInfo) string {
 	if info == nil || info.Name == "" {
 		return ""
@@ -32,11 +32,11 @@ func GetProvisioningInfoName(info *androidmanagement.ProvisioningInfo) string {
 	}
 	// Try to get the appropriate ID based on resource type
 	if rn.ResourceType == "signupUrl" {
-		return rn.SignupURLID
+		return rn.GetField("SignupURLID")
 	}
 	// For device provisioning info, return the device ID
 	if rn.ResourceType == "provisioningInfo" {
-		return rn.DeviceID
+		return rn.GetField("DeviceID")
 	}
 	// Fallback to GetID
 	return rn.GetID()

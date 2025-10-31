@@ -23,30 +23,22 @@ import (
 
 // GetWebTokenID extracts the web token ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetWebTokenID(token *androidmanagement.WebToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.WebTokenID
+	return ExtractResourceField(token.Name, "WebTokenID")
 }
 
 // GetWebTokenEnterpriseID extracts the enterprise ID from the token resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetWebTokenEnterpriseID(token *androidmanagement.WebToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(token.Name, "EnterpriseID")
 }
 
 // Note: Type conversion functions removed

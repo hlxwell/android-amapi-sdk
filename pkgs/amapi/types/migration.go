@@ -19,28 +19,20 @@ import (
 
 // GetMigrationTokenID extracts the migration token ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetMigrationTokenID(token *androidmanagement.MigrationToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.MigrationTokenID
+	return ExtractResourceField(token.Name, "MigrationTokenID")
 }
 
 // GetMigrationTokenEnterpriseID extracts the enterprise ID from the migration token resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetMigrationTokenEnterpriseID(token *androidmanagement.MigrationToken) string {
 	if token == nil || token.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(token.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(token.Name, "EnterpriseID")
 }

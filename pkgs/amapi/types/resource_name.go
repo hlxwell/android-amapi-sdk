@@ -22,8 +22,11 @@
 //	policyID := resourceName.PolicyID          // "default"
 //
 //	// 方式 2: 使用便捷方法（向后兼容）
-//	deviceID := types.ExtractLastSegment(device.Name)
-//	enterpriseID := types.ExtractEnterpriseID(device.Name)
+//	deviceID := types.GetDeviceID(device)
+//	enterpriseID := types.GetDeviceEnterpriseID(device)
+//
+//	// 方式 3: 直接使用统一函数
+//	enterpriseID := types.ExtractResourceField("enterprises/LC00abc123/policies/default", "EnterpriseID")
 package types
 
 import "strings"
@@ -203,6 +206,87 @@ func (rn *ResourceName) GetID() string {
 	}
 }
 
+// GetField extracts a field value by field name from the ResourceName struct.
+//
+// Supported field names:
+//   - "EnterpriseID"
+//   - "PolicyID"
+//   - "DeviceID"
+//   - "EnrollmentTokenID"
+//   - "MigrationTokenID"
+//   - "WebAppID"
+//   - "WebTokenID"
+//   - "SignupURLID"
+//   - "ResourceType"
+//
+// Returns empty string if field name is invalid or field is empty.
+//
+// This is used internally by convenience wrapper functions to extract specific IDs.
+func (rn *ResourceName) GetField(fieldName string) string {
+	if rn == nil {
+		return ""
+	}
+
+	switch fieldName {
+	case "EnterpriseID":
+		return rn.EnterpriseID
+	case "PolicyID":
+		return rn.PolicyID
+	case "DeviceID":
+		return rn.DeviceID
+	case "EnrollmentTokenID":
+		return rn.EnrollmentTokenID
+	case "MigrationTokenID":
+		return rn.MigrationTokenID
+	case "WebAppID":
+		return rn.WebAppID
+	case "WebTokenID":
+		return rn.WebTokenID
+	case "SignupURLID":
+		return rn.SignupURLID
+	case "ResourceType":
+		return rn.ResourceType
+	default:
+		return ""
+	}
+}
+
+// ExtractResourceField is a generic helper function that extracts a field from a resource name.
+//
+// This function:
+// 1. Checks if the resource name is valid
+// 2. Parses it into a ResourceName struct
+// 3. Extracts the specified field by field name
+//
+// Supported field names:
+//   - "EnterpriseID"
+//   - "PolicyID"
+//   - "DeviceID"
+//   - "EnrollmentTokenID"
+//   - "MigrationTokenID"
+//   - "WebAppID"
+//   - "WebTokenID"
+//   - "SignupURLID"
+//
+// This is used by all Get*ID and Get*EnterpriseID convenience wrapper functions.
+//
+// Example:
+//
+//	enterpriseID := ExtractResourceField("enterprises/LC00abc123/policies/default", "EnterpriseID")
+//	policyID := ExtractResourceField("enterprises/LC00abc123/policies/default", "PolicyID")
+func ExtractResourceField(resourceName string, fieldName string) string {
+	if resourceName == "" {
+		return ""
+	}
+
+	rn := ParseResourceNameStruct(resourceName)
+	if rn == nil {
+		return ""
+	}
+
+	return rn.GetField(fieldName)
+}
+
 // ExtractSegment extracts a segment from a resource name by index (0-based).
 //
 // Resource name format: "enterprises/{enterpriseId}/policies/{policyId}"
@@ -271,30 +355,7 @@ func ExtractLastSegment(resourceName string) string {
 //
 // Deprecated: Use ParseResourceNameStruct() instead for type-safe access.
 func ExtractEnterpriseID(resourceName string) string {
-	if resourceName == "" {
-		return ""
-	}
-
-	const prefix = "enterprises/"
-	if !strings.HasPrefix(resourceName, prefix) {
-		return ""
-	}
-
-	// Skip the prefix and extract the next segment
-	remaining := resourceName[len(prefix):]
-	if remaining == "" {
-		return ""
-	}
-
-	// Find the next '/' (if any) to get just the enterprise ID
-	nextSlash := strings.Index(remaining, "/")
-	if nextSlash == -1 {
-		// No more segments, the whole remaining part is the enterprise ID
-		return remaining
-	}
-
-	// Return the segment before the next '/'
-	return remaining[:nextSlash]
+	return ExtractResourceField(resourceName, "EnterpriseID")
 }
 
 // ParseResourceName parses a resource name and returns all segments.

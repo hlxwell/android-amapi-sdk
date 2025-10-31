@@ -28,30 +28,22 @@ import (
 
 // GetDeviceID extracts the device ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetDeviceID(device *androidmanagement.Device) string {
 	if device == nil || device.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(device.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.DeviceID
+	return ExtractResourceField(device.Name, "DeviceID")
 }
 
 // GetDeviceEnterpriseID extracts the enterprise ID from the device resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetDeviceEnterpriseID(device *androidmanagement.Device) string {
 	if device == nil || device.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(device.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(device.Name, "EnterpriseID")
 }
 
 // IsDeviceOnline checks if the device is currently online based on last status report.

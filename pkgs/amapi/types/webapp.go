@@ -28,30 +28,22 @@ import (
 
 // GetWebAppID extracts the web app ID from the resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetWebAppID(webApp *androidmanagement.WebApp) string {
 	if webApp == nil || webApp.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(webApp.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.WebAppID
+	return ExtractResourceField(webApp.Name, "WebAppID")
 }
 
 // GetWebAppEnterpriseID extracts the enterprise ID from the web app resource name.
 //
-// This is a convenience wrapper around ParseResourceNameStruct.
+// This is a convenience wrapper around ExtractResourceField.
 func GetWebAppEnterpriseID(webApp *androidmanagement.WebApp) string {
 	if webApp == nil || webApp.Name == "" {
 		return ""
 	}
-	rn := ParseResourceNameStruct(webApp.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return ExtractResourceField(webApp.Name, "EnterpriseID")
 }
 
 // Note: Type conversion functions removed

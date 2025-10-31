@@ -137,30 +137,22 @@ func SetEnrollmentTokenAllowPersonalUsage(token *androidmanagement.EnrollmentTok
 
 // GetPolicyID extracts the policy ID from the resource name.
 //
-// This is a convenience wrapper around types.ParseResourceNameStruct.
+// This is a convenience wrapper around types.ExtractResourceField.
 func GetPolicyID(policy *androidmanagement.Policy) string {
 	if policy == nil || policy.Name == "" {
 		return ""
 	}
-	rn := types.ParseResourceNameStruct(policy.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.PolicyID
+	return types.ExtractResourceField(policy.Name, "PolicyID")
 }
 
 // GetPolicyEnterpriseID extracts the enterprise ID from the policy resource name.
 //
-// This is a convenience wrapper around types.ParseResourceNameStruct.
+// This is a convenience wrapper around types.ExtractResourceField.
 func GetPolicyEnterpriseID(policy *androidmanagement.Policy) string {
 	if policy == nil || policy.Name == "" {
 		return ""
 	}
-	rn := types.ParseResourceNameStruct(policy.Name)
-	if rn == nil {
-		return ""
-	}
-	return rn.EnterpriseID
+	return types.ExtractResourceField(policy.Name, "EnterpriseID")
 }
 
 // Helper functions for androidmanagement.Device
