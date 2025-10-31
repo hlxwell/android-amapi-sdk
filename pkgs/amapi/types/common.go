@@ -3,8 +3,6 @@ package types
 
 import (
 	"time"
-
-	"google.golang.org/api/androidmanagement/v1"
 )
 
 // Result represents a generic operation result with optional error handling.
@@ -117,58 +115,6 @@ const (
 	EnrollmentTypePersonalWork EnrollmentTokenType = "personalWorkDeviceProvisioning"
 )
 
-// Convert between AMAPI types and our types
-
-// Note: ToAMAPIPolicy and FromAMAPIPolicy removed - use androidmanagement.Policy directly
-
-// ToAMAPIDevice converts our device representation to the AMAPI format.
-func ToAMAPIDevice(device *Device) *androidmanagement.Device {
-	if device == nil {
-		return nil
-	}
-
-	return &androidmanagement.Device{
-		Name:                    device.Name,
-		ApplicationReports:      device.ApplicationReports,
-		AppliedPolicyName:       device.AppliedPolicyName,
-		AppliedPolicyVersion:    device.AppliedPolicyVersion,
-		ApiLevel:                device.APILevel,
-		EnrollmentTime:          device.EnrollmentTime,
-		LastPolicyComplianceReportTime: device.LastPolicyComplianceReportTime,
-		LastPolicySyncTime:      device.LastPolicySyncTime,
-		LastStatusReportTime:    device.LastStatusReportTime,
-		MemoryInfo:              device.MemoryInfo,
-		NetworkInfo:             device.NetworkInfo,
-		PolicyCompliant:         device.PolicyCompliant,
-		SoftwareInfo:            device.SoftwareInfo,
-		State:                   string(device.State),
-		UserName:                device.UserName,
-		// Add other fields as needed
-	}
-}
-
-// FromAMAPIDevice converts AMAPI device to our representation.
-func FromAMAPIDevice(device *androidmanagement.Device) *Device {
-	if device == nil {
-		return nil
-	}
-
-	return &Device{
-		Name:                    device.Name,
-		ApplicationReports:      device.ApplicationReports,
-		AppliedPolicyName:       device.AppliedPolicyName,
-		AppliedPolicyVersion:    device.AppliedPolicyVersion,
-		APILevel:                device.ApiLevel,
-		EnrollmentTime:          device.EnrollmentTime,
-		LastPolicyComplianceReportTime: device.LastPolicyComplianceReportTime,
-		LastPolicySyncTime:      device.LastPolicySyncTime,
-		LastStatusReportTime:    device.LastStatusReportTime,
-		MemoryInfo:              device.MemoryInfo,
-		NetworkInfo:             device.NetworkInfo,
-		PolicyCompliant:         device.PolicyCompliant,
-		SoftwareInfo:            device.SoftwareInfo,
-		State:                   DeviceState(device.State),
-		UserName:                device.UserName,
-		// Add other fields as needed
-	}
-}
+// Note: Type conversion functions removed
+// All types now use androidmanagement package types directly
+// No conversion needed between custom types and official SDK types

@@ -19,7 +19,7 @@ func (c *Client) WebTokens() *WebTokenService {
 }
 
 // Create creates a new web token.
-func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*types.WebToken, error) {
+func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*androidmanagement.WebToken, error) {
 	if req == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web token create request is required")
 	}
@@ -58,11 +58,11 @@ func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*types.Web
 		return nil, wts.client.wrapAPIError(err, "create web token")
 	}
 
-	return types.FromAMAPIWebToken(result), nil
+	return result, nil
 }
 
 // CreateByEnterpriseID creates a new web token using enterprise ID.
-func (wts *WebTokenService) CreateByEnterpriseID(enterpriseID string, duration time.Duration) (*types.WebToken, error) {
+func (wts *WebTokenService) CreateByEnterpriseID(enterpriseID string, duration time.Duration) (*androidmanagement.WebToken, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (wts *WebTokenService) CreateByEnterpriseID(enterpriseID string, duration t
 }
 
 // CreateWithOptions creates a new web token with custom options.
-func (wts *WebTokenService) CreateWithOptions(enterpriseID string, duration time.Duration, parentFrameUrl string, enabledFeatures []string) (*types.WebToken, error) {
+func (wts *WebTokenService) CreateWithOptions(enterpriseID string, duration time.Duration, parentFrameUrl string, enabledFeatures []string) (*androidmanagement.WebToken, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -96,29 +96,27 @@ func (wts *WebTokenService) CreateWithOptions(enterpriseID string, duration time
 }
 
 // CreateQuick creates a web token with default settings (24 hours).
-func (wts *WebTokenService) CreateQuick(enterpriseID string) (*types.WebToken, error) {
+func (wts *WebTokenService) CreateQuick(enterpriseID string) (*androidmanagement.WebToken, error) {
 	return wts.CreateByEnterpriseID(enterpriseID, 24*time.Hour)
 }
 
 // Get retrieves a web token by its resource name.
 // Note: This method is a placeholder as the actual API method may not be available
-func (wts *WebTokenService) Get(tokenName string) (*types.WebToken, error) {
+func (wts *WebTokenService) Get(tokenName string) (*androidmanagement.WebToken, error) {
 	if tokenName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web token name is required")
 	}
 
 	// For now, return a placeholder token
 	// In a real implementation, this would call the actual API
-	return &types.WebToken{
-		Name:      tokenName,
-		Value:     "placeholder-token-value",
-		IsActive:  true,
-		CreatedAt: time.Now(),
+	return &androidmanagement.WebToken{
+		Name:  tokenName,
+		Value: "placeholder-token-value",
 	}, nil
 }
 
 // GetByID retrieves a web token by enterprise ID and token ID.
-func (wts *WebTokenService) GetByID(enterpriseID, tokenID string) (*types.WebToken, error) {
+func (wts *WebTokenService) GetByID(enterpriseID, tokenID string) (*androidmanagement.WebToken, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -132,11 +130,11 @@ func (wts *WebTokenService) GetByID(enterpriseID, tokenID string) (*types.WebTok
 }
 
 // GetActiveTokens returns all active web tokens for an enterprise.
-func (wts *WebTokenService) GetActiveTokens(enterpriseID string) ([]*types.WebToken, error) {
+func (wts *WebTokenService) GetActiveTokens(enterpriseID string) ([]*androidmanagement.WebToken, error) {
 	// Note: The API doesn't provide a list method for web tokens,
 	// so we can only get individual tokens by name
 	// This is a limitation of the current API design
-	return []*types.WebToken{}, nil
+	return []*androidmanagement.WebToken{}, nil
 }
 
 // GetTokenStatistics returns statistics about web tokens for an enterprise.

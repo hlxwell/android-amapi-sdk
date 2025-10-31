@@ -19,7 +19,7 @@ func (c *Client) WebApps() *WebAppService {
 }
 
 // Create creates a new web app.
-func (was *WebAppService) Create(req *types.WebAppCreateRequest) (*types.WebApp, error) {
+func (was *WebAppService) Create(req *types.WebAppCreateRequest) (*androidmanagement.WebApp, error) {
 	if req == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web app create request is required")
 	}
@@ -48,11 +48,11 @@ func (was *WebAppService) Create(req *types.WebAppCreateRequest) (*types.WebApp,
 		return nil, was.client.wrapAPIError(err, "create web app")
 	}
 
-	return types.FromAMAPIWebApp(result), nil
+	return result, nil
 }
 
 // CreateByEnterpriseID creates a new web app using enterprise ID.
-func (was *WebAppService) CreateByEnterpriseID(enterpriseID, displayName, startURL string) (*types.WebApp, error) {
+func (was *WebAppService) CreateByEnterpriseID(enterpriseID, displayName, startURL string) (*androidmanagement.WebApp, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (was *WebAppService) CreateByEnterpriseID(enterpriseID, displayName, startU
 }
 
 // Get retrieves a web app by its resource name.
-func (was *WebAppService) Get(webAppName string) (*types.WebApp, error) {
+func (was *WebAppService) Get(webAppName string) (*androidmanagement.WebApp, error) {
 	if webAppName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web app name is required")
 	}
@@ -86,11 +86,11 @@ func (was *WebAppService) Get(webAppName string) (*types.WebApp, error) {
 		return nil, was.client.wrapAPIError(err, "get web app")
 	}
 
-	return types.FromAMAPIWebApp(result), nil
+	return result, nil
 }
 
 // GetByID retrieves a web app by enterprise ID and web app ID.
-func (was *WebAppService) GetByID(enterpriseID, webAppID string) (*types.WebApp, error) {
+func (was *WebAppService) GetByID(enterpriseID, webAppID string) (*androidmanagement.WebApp, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (was *WebAppService) GetByID(enterpriseID, webAppID string) (*types.WebApp,
 }
 
 // Update updates an existing web app.
-func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*types.WebApp, error) {
+func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*androidmanagement.WebApp, error) {
 	if req == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web app update request is required")
 	}
@@ -114,14 +114,12 @@ func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*types.WebApp,
 	}
 
 	// Get current web app
-	currentWebApp, err := was.Get(req.Name)
+	webApp, err := was.Get(req.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Apply updates
-	webApp := currentWebApp.ToAMAPIWebApp()
-
 	// Note: DisplayName field may not be available in the API
 
 	if req.StartURL != "" {
@@ -155,11 +153,11 @@ func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*types.WebApp,
 		return nil, was.client.wrapAPIError(err, "update web app")
 	}
 
-	return types.FromAMAPIWebApp(result), nil
+	return result, nil
 }
 
 // UpdateByID updates a web app by enterprise ID and web app ID.
-func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *types.WebApp) (*types.WebApp, error) {
+func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -171,8 +169,7 @@ func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *type
 	webAppName := buildWebAppName(enterpriseID, webAppID)
 	req := &types.WebAppUpdateRequest{
 		Name:        webAppName,
-		DisplayName: webApp.DisplayName,
-		StartURL:    webApp.StartURL,
+		StartURL:    webApp.StartUrl,
 		Icons:       webApp.Icons,
 		VersionCode: webApp.VersionCode,
 	}
@@ -181,7 +178,7 @@ func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *type
 }
 
 // List lists web apps for an enterprise.
-func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[types.WebApp], error) {
+func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[*androidmanagement.WebApp], error) {
 	if req == nil || req.EnterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
@@ -208,31 +205,21 @@ func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[
 		return nil, was.client.wrapAPIError(err, "list web apps")
 	}
 
-	// Convert results
-	webApps := make([]types.WebApp, len(result.WebApps))
-	for i, webApp := range result.WebApps {
-		webApps[i] = *types.FromAMAPIWebApp(webApp)
-	}
+	// Return results directly
+	webApps := make([]*androidmanagement.WebApp, len(result.WebApps))
+	copy(webApps, result.WebApps)
 
-	// Apply client-side filtering
-	if req.ActiveOnly {
-		filteredWebApps := make([]types.WebApp, 0)
-		for _, webApp := range webApps {
-			if webApp.IsActive {
-				filteredWebApps = append(filteredWebApps, webApp)
-			}
-		}
-		webApps = filteredWebApps
-	}
+	// Note: ActiveOnly filtering removed as androidmanagement.WebApp doesn't have IsActive field
+	// Filtering can be done by the caller if needed
 
-	return &types.ListResult[types.WebApp]{
+	return &types.ListResult[*androidmanagement.WebApp]{
 		Items:         webApps,
 		NextPageToken: result.NextPageToken,
 	}, nil
 }
 
 // ListByEnterpriseID lists web apps for an enterprise by enterprise ID.
-func (was *WebAppService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[types.WebApp], error) {
+func (was *WebAppService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.WebApp], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -286,7 +273,7 @@ func (was *WebAppService) DeleteByID(enterpriseID, webAppID string) error {
 }
 
 // GetActiveWebApps returns all active web apps for an enterprise.
-func (was *WebAppService) GetActiveWebApps(enterpriseID string) (*types.ListResult[types.WebApp], error) {
+func (was *WebAppService) GetActiveWebApps(enterpriseID string) (*types.ListResult[*androidmanagement.WebApp], error) {
 	req := &types.WebAppListRequest{
 		EnterpriseName: buildEnterpriseName(enterpriseID),
 		ActiveOnly:     true,
