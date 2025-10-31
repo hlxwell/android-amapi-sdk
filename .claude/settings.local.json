@@ -7,7 +7,8 @@
       "Bash(go get:*)",
       "Bash(go run:*)",
       "Bash(find:*)",
-      "Bash(./build/*)"
+      "Bash(./build/*)",
+      "Bash(go test:*)"
     ],
     "deny": [],
     "ask": []
