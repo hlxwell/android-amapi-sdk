@@ -119,47 +119,7 @@ const (
 
 // Convert between AMAPI types and our types
 
-// ToAMAPIPolicy converts our policy representation to the AMAPI format.
-func ToAMAPIPolicy(policy *Policy) *androidmanagement.Policy {
-	if policy == nil {
-		return nil
-	}
-
-	return &androidmanagement.Policy{
-		Name:                    policy.Name,
-		Version:                 policy.Version,
-		Applications:            policy.Applications,
-		ComplianceRules:         policy.ComplianceRules,
-		KeyguardDisabled:        policy.KeyguardDisabled,
-		StatusBarDisabled:       policy.StatusBarDisabled,
-		StatusReportingSettings: policy.StatusReportingSettings,
-		SystemUpdate:            policy.SystemUpdate,
-		TetheringConfigDisabled: policy.TetheringConfigDisabled,
-		UninstallAppsDisabled:   policy.UninstallAppsDisabled,
-		// Add other fields as needed
-	}
-}
-
-// FromAMAPIPolicy converts AMAPI policy to our representation.
-func FromAMAPIPolicy(policy *androidmanagement.Policy) *Policy {
-	if policy == nil {
-		return nil
-	}
-
-	return &Policy{
-		Name:                    policy.Name,
-		Version:                 policy.Version,
-		Applications:            policy.Applications,
-		ComplianceRules:         policy.ComplianceRules,
-		KeyguardDisabled:        policy.KeyguardDisabled,
-		StatusBarDisabled:       policy.StatusBarDisabled,
-		StatusReportingSettings: policy.StatusReportingSettings,
-		SystemUpdate:            policy.SystemUpdate,
-		TetheringConfigDisabled: policy.TetheringConfigDisabled,
-		UninstallAppsDisabled:   policy.UninstallAppsDisabled,
-		// Add other fields as needed
-	}
-}
+// Note: ToAMAPIPolicy and FromAMAPIPolicy removed - use androidmanagement.Policy directly
 
 // ToAMAPIDevice converts our device representation to the AMAPI format.
 func ToAMAPIDevice(device *Device) *androidmanagement.Device {

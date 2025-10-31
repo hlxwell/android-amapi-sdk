@@ -17,7 +17,7 @@ func (c *Client) ProvisioningInfo() *ProvisioningService {
 }
 
 // Get retrieves provisioning information by its resource name.
-func (ps *ProvisioningService) Get(req *types.ProvisioningInfoGetRequest) (*types.ProvisioningInfo, error) {
+func (ps *ProvisioningService) Get(req *types.ProvisioningInfoGetRequest) (*androidmanagement.ProvisioningInfo, error) {
 	if req == nil || req.Name == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "provisioning info name is required")
 	}
@@ -34,11 +34,11 @@ func (ps *ProvisioningService) Get(req *types.ProvisioningInfoGetRequest) (*type
 		return nil, ps.client.wrapAPIError(err, "get provisioning info")
 	}
 
-	return types.FromAMAPIProvisioningInfo(result), nil
+	return result, nil
 }
 
 // GetByID retrieves provisioning information by ID.
-func (ps *ProvisioningService) GetByID(provisioningInfoID string) (*types.ProvisioningInfo, error) {
+func (ps *ProvisioningService) GetByID(provisioningInfoID string) (*androidmanagement.ProvisioningInfo, error) {
 	if provisioningInfoID == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "provisioning info ID is required")
 	}
@@ -52,7 +52,7 @@ func (ps *ProvisioningService) GetByID(provisioningInfoID string) (*types.Provis
 }
 
 // GetByDeviceID retrieves provisioning information by device ID.
-func (ps *ProvisioningService) GetByDeviceID(deviceID string) (*types.ProvisioningInfo, error) {
+func (ps *ProvisioningService) GetByDeviceID(deviceID string) (*androidmanagement.ProvisioningInfo, error) {
 	if deviceID == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "device ID is required")
 	}
@@ -68,7 +68,7 @@ func (ps *ProvisioningService) GetByDeviceID(deviceID string) (*types.Provisioni
 }
 
 // GetByEnterpriseID retrieves provisioning information by enterprise ID.
-func (ps *ProvisioningService) GetByEnterpriseID(enterpriseID string) (*types.ProvisioningInfo, error) {
+func (ps *ProvisioningService) GetByEnterpriseID(enterpriseID string) (*androidmanagement.ProvisioningInfo, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}

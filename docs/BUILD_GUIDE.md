@@ -74,8 +74,7 @@ amapi-pkg/
 │   ├── config/            # 配置管理
 │   ├── types/             # 类型定义
 │   ├── utils/             # 工具函数
-│   ├── presets/           # 策略预设
-│   └── examples/          # SDK 使用示例
+│   └── presets/           # 策略预设
 ├── config.yaml.example    # YAML 配置模板
 ├── .env.example           # 环境变量模板
 ├── sa-key.json.example    # 服务账号密钥模板
@@ -336,9 +335,8 @@ mkdir -p "$RELEASE_DIR"
 # 复制二进制文件
 cp amapi-cli-* "$RELEASE_DIR/"
 
-# 复制文档和示例
+# 复制文档
 cp README.md CLI_USAGE.md BUILD_GUIDE.md "$RELEASE_DIR/"
-cp -r examples "$RELEASE_DIR/"
 
 # 创建压缩包
 cd release

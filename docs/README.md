@@ -90,7 +90,6 @@
 
 1. [构建指南](BUILD_GUIDE.md) - 设置开发环境
 2. [使用指南](USAGE_GUIDE.md) - 深入了解 SDK
-3. [SDK 示例代码](../pkgs/amapi/examples/) - 查看实际应用
 
 ### 运维人员
 

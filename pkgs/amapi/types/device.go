@@ -128,7 +128,7 @@ type DeviceCommandRequest struct {
 	DeviceName string `json:"device_name"`
 
 	// Command is the command to issue
-	Command *DeviceCommand `json:"command"`
+	Command *androidmanagement.Command `json:"command"`
 }
 
 // DeviceDeleteRequest represents a request to delete a device.

@@ -60,6 +60,8 @@ package amapi
 import (
 	"time"
 
+	"google.golang.org/api/androidmanagement/v1"
+
 	"amapi-pkg/pkgs/amapi/client"
 	"amapi-pkg/pkgs/amapi/config"
 	"amapi-pkg/pkgs/amapi/types"
@@ -105,39 +107,47 @@ type Config = config.Config
 
 // 核心类型定义
 //
-// 以下类型从 types 包导出，提供了 API 操作所需的所有数据结构。
+// 直接使用 google.golang.org/api/androidmanagement/v1 包中的类型，
+// 避免不必要的类型转换，提高代码效率和可维护性。
+//
+// 使用 helpers.go 中的辅助函数来操作这些类型。
+
+// 类型别名，直接使用 androidmanagement 包的类型
 type (
 	// Enterprise 表示一个企业实体，是设备管理的顶层组织单位。
 	// 每个企业可以包含多个策略、设备和注册令牌。
-	Enterprise = types.Enterprise
+	Enterprise = androidmanagement.Enterprise
 
 	// Policy 定义了设备的管理策略和限制。
 	// 策略控制设备的功能、应用、网络设置等各个方面。
-	Policy = types.Policy
+	Policy = androidmanagement.Policy
 
 	// Device 表示一个已注册的 Android 设备。
 	// 包含设备信息、状态、合规性等详细数据。
-	Device = types.Device
+	Device = androidmanagement.Device
 
 	// EnrollmentToken 是用于注册新设备的令牌。
 	// 设备使用此令牌完成初始注册并应用指定的策略。
-	EnrollmentToken = types.EnrollmentToken
+	EnrollmentToken = androidmanagement.EnrollmentToken
 
 	// MigrationToken 用于从其他 EMM 系统迁移设备。
 	// 允许将现有的托管设备迁移到 Android Management API。
-	MigrationToken = types.MigrationToken
+	MigrationToken = androidmanagement.MigrationToken
 
 	// WebApp 表示企业托管的 Web 应用。
 	// 可以部署到托管设备上作为 Web 快捷方式。
-	WebApp = types.WebApp
+	WebApp = androidmanagement.WebApp
 
 	// WebToken 用于生成管理员访问企业管理界面的临时令牌。
 	// 提供安全的 Web UI 访问权限。
-	WebToken = types.WebToken
+	WebToken = androidmanagement.WebToken
 
 	// ProvisioningInfo 包含设备配置和预配置信息。
 	// 用于查询设备的配置状态和要求。
-	ProvisioningInfo = types.ProvisioningInfo
+	ProvisioningInfo = androidmanagement.ProvisioningInfo
+
+	// Command 表示可以发送到设备的命令。
+	Command = androidmanagement.Command
 
 	// APIError 表示 API 操作中发生的错误。
 	// 提供详细的错误代码、消息和重试信息。

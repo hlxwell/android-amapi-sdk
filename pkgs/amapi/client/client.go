@@ -17,6 +17,8 @@ import (
 	"amapi-pkg/pkgs/amapi/config"
 	"amapi-pkg/pkgs/amapi/types"
 	"amapi-pkg/pkgs/amapi/utils"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // Client represents the Android Management API client.
@@ -34,10 +36,13 @@ type Client struct {
 	httpClient *http.Client
 
 	// retryHandler handles retry logic
-	retryHandler *utils.RetryHandler
+	retryHandler utils.RetryHandlerInterface
 
 	// rateLimiter handles rate limiting
-	rateLimiter *utils.RateLimiter
+	rateLimiter utils.RateLimiterInterface
+
+	// redisClient is the Redis client (if using Redis)
+	redisClient *redis.Client
 
 	// info contains client information
 	info *types.ClientInfo
@@ -67,22 +72,51 @@ func New(cfg *config.Config) (*Client, error) {
 		return nil, types.WrapError(err, types.ErrCodeConfiguration, "failed to create Android Management service")
 	}
 
-	// Create retry handler
-	retryHandler := utils.NewRetryHandler(utils.RetryConfig{
-		MaxAttempts:  cfg.RetryAttempts,
-		BaseDelay:    cfg.RetryDelay,
-		MaxDelay:     30 * time.Second,
-		EnableRetry:  cfg.EnableRetry,
-	})
+	// Initialize Redis client if configured
+	var redisClient *redis.Client
+	if cfg.RedisAddress != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     cfg.RedisAddress,
+			Password: cfg.RedisPassword,
+			DB:       cfg.RedisDB,
+		})
 
-	// Create rate limiter
-	rateLimiter := utils.NewRateLimiter(cfg.RateLimit, cfg.RateBurst)
+		// Test Redis connection
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			return nil, types.WrapError(err, types.ErrCodeConfiguration, "failed to connect to Redis")
+		}
+	}
+
+	// Create retry handler (Redis or local)
+	var retryHandler utils.RetryHandlerInterface
+	retryConfig := utils.RetryConfig{
+		MaxAttempts: cfg.RetryAttempts,
+		BaseDelay:   cfg.RetryDelay,
+		MaxDelay:    30 * time.Second,
+		EnableRetry: cfg.EnableRetry,
+	}
+
+	if redisClient != nil && cfg.UseRedisRetry {
+		retryHandler = utils.NewRedisRetryHandler(redisClient, cfg.RedisKeyPrefix, retryConfig)
+	} else {
+		retryHandler = utils.NewRetryHandler(retryConfig)
+	}
+
+	// Create rate limiter (Redis or local)
+	var rateLimiter utils.RateLimiterInterface
+	if redisClient != nil && cfg.UseRedisRateLimit {
+		rateLimiter = utils.NewRedisRateLimiter(redisClient, cfg.RedisKeyPrefix, cfg.RateLimit, cfg.RateBurst)
+	} else {
+		rateLimiter = utils.NewRateLimiter(cfg.RateLimit, cfg.RateBurst)
+	}
 
 	// Create client info
 	clientInfo := &types.ClientInfo{
-		Version:     "1.0.0",
-		ProjectID:   cfg.ProjectID,
-		UserAgent:   fmt.Sprintf("amapi-client/1.0.0 (project=%s)", cfg.ProjectID),
+		Version:   "1.0.0",
+		ProjectID: cfg.ProjectID,
+		UserAgent: fmt.Sprintf("amapi-client/1.0.0 (project=%s)", cfg.ProjectID),
 		Capabilities: []string{
 			"enterprises",
 			"policies",
@@ -100,6 +134,7 @@ func New(cfg *config.Config) (*Client, error) {
 		httpClient:   httpClient,
 		retryHandler: retryHandler,
 		rateLimiter:  rateLimiter,
+		redisClient:  redisClient,
 		info:         clientInfo,
 	}
 
@@ -165,7 +200,28 @@ func (c *Client) GetConfig() *config.Config {
 
 // Close closes the client and releases resources.
 func (c *Client) Close() error {
-	// Close any open connections
+	// Close rate limiter
+	if c.rateLimiter != nil {
+		if err := c.rateLimiter.Close(); err != nil {
+			return err
+		}
+	}
+
+	// Close retry handler
+	if c.retryHandler != nil {
+		if err := c.retryHandler.Close(); err != nil {
+			return err
+		}
+	}
+
+	// Close Redis client
+	if c.redisClient != nil {
+		if err := c.redisClient.Close(); err != nil {
+			return err
+		}
+	}
+
+	// Close any open HTTP connections
 	if c.httpClient != nil {
 		c.httpClient.CloseIdleConnections()
 	}
@@ -193,7 +249,10 @@ func (c *Client) executeWithRetry(operation func() error) error {
 		return operation()
 	}
 
-	return c.retryHandler.Execute(operation)
+	// Generate operation ID for distributed retry coordination
+	operationID := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	return c.retryHandler.Execute(c.ctx, operationID, operation)
 }
 
 // withRateLimit applies rate limiting to an operation.

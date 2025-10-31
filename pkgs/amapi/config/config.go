@@ -160,6 +160,40 @@ type Config struct {
 	// 默认为 10。
 	// 可通过环境变量 AMAPI_RATE_BURST 设置。
 	RateBurst int `yaml:"rate_burst" json:"rate_burst"`
+
+	// Redis 配置（用于分布式 rate limiting 和 retry 管理）
+
+	// RedisAddress 是 Redis 服务器地址（格式：host:port）。
+	// 如果设置，将使用 Redis 实现分布式的 rate limiting 和 retry 管理。
+	// 可通过环境变量 AMAPI_REDIS_ADDRESS 设置。
+	RedisAddress string `yaml:"redis_address" json:"redis_address"`
+
+	// RedisPassword 是 Redis 服务器密码（可选）。
+	// 可通过环境变量 AMAPI_REDIS_PASSWORD 设置。
+	RedisPassword string `yaml:"redis_password" json:"redis_password"`
+
+	// RedisDB 是 Redis 数据库编号。
+	// 默认为 0。
+	// 可通过环境变量 AMAPI_REDIS_DB 设置。
+	RedisDB int `yaml:"redis_db" json:"redis_db"`
+
+	// RedisKeyPrefix 是 Redis key 的前缀。
+	// 用于区分不同项目或环境的 key。
+	// 默认为 "amapi:"。
+	// 可通过环境变量 AMAPI_REDIS_KEY_PREFIX 设置。
+	RedisKeyPrefix string `yaml:"redis_key_prefix" json:"redis_key_prefix"`
+
+	// UseRedisRateLimit 控制是否使用 Redis 进行分布式 rate limiting。
+	// 如果 RedisAddress 未设置，此选项无效。
+	// 默认为 false。
+	// 可通过环境变量 AMAPI_USE_REDIS_RATE_LIMIT 设置。
+	UseRedisRateLimit bool `yaml:"use_redis_rate_limit" json:"use_redis_rate_limit"`
+
+	// UseRedisRetry 控制是否使用 Redis 进行分布式 retry 管理。
+	// 如果 RedisAddress 未设置，此选项无效。
+	// 默认为 false。
+	// 可通过环境变量 AMAPI_USE_REDIS_RETRY 设置。
+	UseRedisRetry bool `yaml:"use_redis_retry" json:"use_redis_retry"`
 }
 
 // DefaultConfig 返回一个包含合理默认值的配置对象。
@@ -195,6 +229,10 @@ func DefaultConfig() *Config {
 		EnableDebugLogging:    false,
 		RateLimit:             100,
 		RateBurst:             10,
+		RedisDB:               0,
+		RedisKeyPrefix:        "amapi:",
+		UseRedisRateLimit:     false,
+		UseRedisRetry:         false,
 	}
 }
 

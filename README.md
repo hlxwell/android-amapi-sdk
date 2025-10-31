@@ -581,7 +581,7 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 
 - 在 GitHub 上创建 Issue
 - 查看 [API 文档](https://developers.google.com/android/management)
-- 查看 [examples](examples/) 目录
+
 - 阅读 [文档](docs/)
 
 ## 🛠️ Makefile 命令
@@ -830,9 +830,8 @@ make test-coverage
 - [项目结构](docs/PROJECT_STRUCTURE.md) - 代码组织说明
 
 ### 代码示例
-- `pkgs/amapi/examples/` - SDK 使用示例
 - `docs/` - 文档中的代码示例
-- `README.md` - 本文档中的 50+ 示例
+- `README.md` - 本文档中的示例
 
 ## 🎯 下一步
 

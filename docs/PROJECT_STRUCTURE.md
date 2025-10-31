@@ -14,7 +14,6 @@ amapi-pkg/
 │   └── amapi/            # AMAPI SDK
 │       ├── client/       # API 客户端实现
 │       ├── config/       # 配置管理
-│       ├── examples/     # 示例代码
 │       ├── presets/      # 预设配置
 │       ├── types/        # 类型定义
 │       ├── utils/        # 工具函数
