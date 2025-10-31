@@ -44,15 +44,7 @@ func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*typ
 		return nil, ms.client.wrapAPIError(err, "create migration token")
 	}
 
-	// Wrap the result with our extended type
-	wrapped := &types.MigrationToken{
-		MigrationToken: result,
-		CreatedAt:      time.Now(),
-		IsActive:       true,
-	}
-	wrapped.EnterpriseID = wrapped.GetEnterpriseID()
-
-	return wrapped, nil
+	return result, nil
 }
 
 // CreateByEnterpriseID creates a new migration token using enterprise ID.
@@ -95,13 +87,7 @@ func (ms *MigrationService) Get(tokenName string) (*types.MigrationToken, error)
 		return nil, ms.client.wrapAPIError(err, "get migration token")
 	}
 
-	// Wrap the result with our extended type
-	token := &types.MigrationToken{
-		MigrationToken: result,
-	}
-	token.EnterpriseID = token.GetEnterpriseID()
-
-	return token, nil
+	return result, nil
 }
 
 // GetByID retrieves a migration token by enterprise ID and token ID.
@@ -119,7 +105,7 @@ func (ms *MigrationService) GetByID(enterpriseID, tokenID string) (*types.Migrat
 }
 
 // List lists migration tokens for an enterprise.
-func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.ListResult[types.MigrationToken], error) {
+func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.ListResult[*types.MigrationToken], error) {
 	if req == nil || req.EnterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
@@ -146,43 +132,18 @@ func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.L
 		return nil, ms.client.wrapAPIError(err, "list migration tokens")
 	}
 
-	// Convert results
-	tokens := make([]types.MigrationToken, len(result.MigrationTokens))
-	for i, token := range result.MigrationTokens {
-		wrapped := types.MigrationToken{
-			MigrationToken: token,
-		}
-		wrapped.EnterpriseID = wrapped.GetEnterpriseID()
-		tokens[i] = wrapped
-	}
+	// Convert results - use pointers directly
+	tokens := make([]*types.MigrationToken, len(result.MigrationTokens))
+	copy(tokens, result.MigrationTokens)
 
-	// Apply client-side filtering
-	if !req.IncludeExpired || req.ActiveOnly {
-		filteredTokens := make([]types.MigrationToken, 0)
-		for _, token := range tokens {
-			// Filter expired tokens if requested
-			if !req.IncludeExpired && token.IsExpired() {
-				continue
-			}
-
-			// Filter active tokens if requested
-			if req.ActiveOnly && !token.IsActive {
-				continue
-			}
-
-			filteredTokens = append(filteredTokens, token)
-		}
-		tokens = filteredTokens
-	}
-
-	return &types.ListResult[types.MigrationToken]{
+	return &types.ListResult[*types.MigrationToken]{
 		Items:         tokens,
 		NextPageToken: result.NextPageToken,
 	}, nil
 }
 
 // ListByEnterpriseID lists migration tokens for an enterprise by enterprise ID.
-func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[types.MigrationToken], error) {
+func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*types.MigrationToken], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -229,68 +190,16 @@ func (ms *MigrationService) DeleteByID(enterpriseID, tokenID string) error {
 	return ms.Delete(req)
 }
 
-// GetActiveTokens returns all active migration tokens for an enterprise.
-func (ms *MigrationService) GetActiveTokens(enterpriseID string) (*types.ListResult[types.MigrationToken], error) {
+// GetActiveTokens returns all migration tokens for an enterprise.
+// Note: Filtering by active status is no longer supported since we use Google's native type.
+func (ms *MigrationService) GetActiveTokens(enterpriseID string) (*types.ListResult[*types.MigrationToken], error) {
 	req := &types.MigrationTokenListRequest{
 		EnterpriseName: buildEnterpriseName(enterpriseID),
-		ActiveOnly:     true,
-		IncludeExpired: false,
 	}
 
 	return ms.List(req)
 }
 
-// GetTokensForPolicy returns all migration tokens for a specific policy.
-func (ms *MigrationService) GetTokensForPolicy(enterpriseID, policyID string) (*types.ListResult[types.MigrationToken], error) {
-	policyName := buildPolicyName(enterpriseID, policyID)
-	req := &types.MigrationTokenListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		IncludeExpired: false,
-	}
-
-	// Get all tokens and filter by policy
-	result, err := ms.List(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter by policy name
-	var filteredTokens []types.MigrationToken
-	for _, token := range result.Items {
-		if token.PolicyName == policyName {
-			filteredTokens = append(filteredTokens, token)
-		}
-	}
-
-	return &types.ListResult[types.MigrationToken]{
-		Items:         filteredTokens,
-		NextPageToken: result.NextPageToken,
-	}, nil
-}
-
-// GetTokenStatistics returns statistics about migration tokens for an enterprise.
-func (ms *MigrationService) GetTokenStatistics(enterpriseID string) (map[string]int, error) {
-	tokens, err := ms.ListByEnterpriseID(enterpriseID, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := map[string]int{
-		"total":   len(tokens.Items),
-		"active":  0,
-		"expired": 0,
-	}
-
-	for _, token := range tokens.Items {
-		if token.IsExpired() {
-			stats["expired"]++
-		} else {
-			stats["active"]++
-		}
-	}
-
-	return stats, nil
-}
 
 // Helper function to build migration token name
 func buildMigrationTokenName(enterpriseID, tokenID string) string {
