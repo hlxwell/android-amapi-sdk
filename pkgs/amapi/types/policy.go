@@ -31,20 +31,7 @@ import (
 //	err := types.ValidatePolicy(policy)
 
 // Policy helper functions (for androidmanagement.Policy)
-
-// HasApplication checks if a specific application is configured in the policy.
-func HasApplication(p *androidmanagement.Policy, packageName string) bool {
-	if p == nil || p.Applications == nil {
-		return false
-	}
-	for _, app := range p.Applications {
-		if app.PackageName == packageName {
-			return true
-		}
-	}
-	return false
-}
-
+//
 // GetApplication returns the application policy for a specific package.
 func GetApplication(p *androidmanagement.Policy, packageName string) *androidmanagement.ApplicationPolicy {
 	if p == nil || p.Applications == nil {
@@ -110,41 +97,4 @@ func ValidatePolicy(p *androidmanagement.Policy) error {
 	}
 
 	return nil
-}
-
-// Application installation type helpers
-
-// NewRequiredApp creates an application policy for a required app.
-func NewRequiredApp(packageName string) *androidmanagement.ApplicationPolicy {
-	return &androidmanagement.ApplicationPolicy{
-		PackageName:     packageName,
-		InstallType:     string(InstallTypeRequired),
-		LockTaskAllowed: true,
-	}
-}
-
-// NewPreinstalledApp creates an application policy for a preinstalled app.
-func NewPreinstalledApp(packageName string) *androidmanagement.ApplicationPolicy {
-	return &androidmanagement.ApplicationPolicy{
-		PackageName: packageName,
-		InstallType: string(InstallTypePreinstalled),
-	}
-}
-
-// NewBlockedApp creates an application policy for a blocked app.
-func NewBlockedApp(packageName string) *androidmanagement.ApplicationPolicy {
-	return &androidmanagement.ApplicationPolicy{
-		PackageName: packageName,
-		InstallType: string(InstallTypeBlocked),
-	}
-}
-
-// NewKioskApp creates an application policy for a kiosk app.
-func NewKioskApp(packageName string) *androidmanagement.ApplicationPolicy {
-	return &androidmanagement.ApplicationPolicy{
-		PackageName:             packageName,
-		InstallType:             string(InstallTypeKiosk),
-		LockTaskAllowed:         true,
-		DefaultPermissionPolicy: "GRANT",
-	}
 }

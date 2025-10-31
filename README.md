@@ -293,7 +293,7 @@ token, err := client.EnrollmentTokens().CreateByEnterpriseID(
 qrOptions := &types.QRCodeOptions{
     WiFiSSID:        "CompanyWiFi",
     WiFiPassword:    "password123",
-    WiFiSecurityType: types.WiFiSecurityTypeWPA2,
+    WiFiSecurityType: "WPA2",
     SkipSetupWizard: true,
 }
 qrData, err := client.EnrollmentTokens().GenerateQRCodeByID(

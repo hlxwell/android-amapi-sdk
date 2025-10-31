@@ -94,9 +94,6 @@
 //
 //	import "amapi-pkg/pkgs/amapi/types"
 //
-//	// 检查策略是否包含某个应用
-//	hasApp := types.HasApplication(policy, "com.example.app")
-//
 //	// 添加应用到策略
 //	types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
 //	    PackageName: "com.example.app",
@@ -162,14 +159,11 @@ type Config = config.Config
 //   - 简化维护工作
 //
 // 操作这些类型时，请使用 types 包中的辅助函数：
-//   - types.HasApplication(policy, packageName)
 //   - types.AddApplication(policy, app)
 //   - types.RemoveApplication(policy, packageName)
 //   - types.ValidatePolicy(policy)
-//   - types.GetEnterpriseID(enterprise)
-//   - types.GetPolicyID(policy)
-//   - types.GetDeviceID(device)
-//   - 等等...
+//   - types.IsEnrollmentTokenExpired(token)
+//   - types.GenerateQRCodeData(token, options)
 //
 // 更多辅助函数请参考 types 包的文档。
 

@@ -20,16 +20,9 @@
 //	// 直接传递参数给客户端方法，不再使用 Request 类型
 //	enterprise, err := client.Enterprises().Create(signupToken, projectID, enterpriseToken, contactInfo)
 //
-//	// 使用辅助函数提取资源 ID
-//	enterpriseID := types.GetEnterpriseID(enterprise)
-//	policyID := types.GetPolicyID(policy)
-//	deviceID := types.GetDeviceID(device)
-//
-//	// 或者使用结构体解析（推荐，更灵活）
-//	rn := types.ParseResourceNameStruct(resourceName)
-//	enterpriseID := rn.EnterpriseID
-//	deviceID := rn.DeviceID
-//	policyID := rn.PolicyID
+//	// 使用辅助函数处理注册令牌
+//	isExpired := types.IsEnrollmentTokenExpired(token)
+//	qrData := types.GenerateQRCodeData(token, options)
 //
 // 更多详细信息请参考各个类型和函数的文档。
 package types

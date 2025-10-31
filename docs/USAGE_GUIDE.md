@@ -208,7 +208,7 @@ token, err := client.EnrollmentTokens().CreateForWorkProfile(
 qrOptions := &types.QRCodeOptions{
     WiFiSSID:         "CompanyWiFi",
     WiFiPassword:     "password123",
-    WiFiSecurityType: types.WiFiSecurityTypeWPA2,
+    WiFiSecurityType: "WPA2",
     SkipSetupWizard:  true,
     Locale:           "en_US",
 }
@@ -220,7 +220,7 @@ qrData, err := client.EnrollmentTokens().GenerateQRCodeByID(
 )
 
 // 转换为 JSON 用于 QR 码生成
-qrJSON, err := qrData.ToJSON()
+qrJSON, err := json.Marshal(qrData)
 ```
 
 #### 令牌管理

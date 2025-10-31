@@ -355,7 +355,12 @@ func (ps *PolicyService) SetKioskMode(policyName, kioskAppPackage string) (*andr
 	policy.UninstallAppsDisabled = true
 
 	// Set kiosk application
-	kioskApp := types.NewKioskApp(kioskAppPackage)
+	kioskApp := &androidmanagement.ApplicationPolicy{
+		PackageName:             kioskAppPackage,
+		InstallType:             string(types.InstallTypeKiosk),
+		LockTaskAllowed:         true,
+		DefaultPermissionPolicy: "GRANT",
+	}
 	types.AddApplication(policy, kioskApp)
 
 	// Update policy

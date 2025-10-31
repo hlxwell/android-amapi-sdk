@@ -8,29 +8,7 @@
 //
 //	import "amapi-pkg/pkgs/amapi/types"
 //
-//	// 操作策略
-//	hasApp := types.HasApplication(policy, "com.example.app")
-//	types.AddApplication(policy, app)
-//	types.RemoveApplication(policy, "com.example.app")
-//	err := types.ValidatePolicy(policy)
-//
-//	// 提取资源 ID（使用便捷包装器）
-//	enterpriseID := types.GetEnterpriseID(enterprise)
-//	policyID := types.GetPolicyID(policy)
-//	deviceID := types.GetDeviceID(device)
-//	tokenID := types.GetEnrollmentTokenID(token)
-//	migrationTokenID := types.GetMigrationTokenID(migrationToken)
-//
-//	// 或者使用结构体解析（推荐，更灵活）
-//	rn := types.ParseResourceNameStruct(resourceName)
-//	if rn != nil {
-//	    enterpriseID := rn.EnterpriseID
-//	    deviceID := rn.DeviceID
-//	    policyID := rn.PolicyID
-//	    resourceType := rn.ResourceType
-//	}
-//
-//	// 检查令牌状态
+//	// 检查注册令牌状态
 //	isExpired := types.IsEnrollmentTokenExpired(token)
 //
 //	// 生成 QR 码数据
@@ -47,46 +25,10 @@
 package types
 
 import (
-	"encoding/json"
 	"time"
 
 	"google.golang.org/api/androidmanagement/v1"
 )
-
-// Helper functions for androidmanagement.Enterprise
-
-// GetEnterpriseID extracts the enterprise ID from the resource name.
-//
-// This is a convenience wrapper around ExtractResourceField.
-// For more complex parsing, use ParseResourceNameStruct() directly.
-func GetEnterpriseID(enterprise *androidmanagement.Enterprise) string {
-	if enterprise == nil || enterprise.Name == "" {
-		return ""
-	}
-	return ExtractResourceField(enterprise.Name, "EnterpriseID")
-}
-
-// Helper functions for androidmanagement.EnrollmentToken
-
-// GetEnrollmentTokenID extracts the token ID from the resource name.
-//
-// This is a convenience wrapper around ExtractResourceField.
-func GetEnrollmentTokenID(token *androidmanagement.EnrollmentToken) string {
-	if token == nil || token.Name == "" {
-		return ""
-	}
-	return ExtractResourceField(token.Name, "EnrollmentTokenID")
-}
-
-// GetEnrollmentTokenEnterpriseID extracts the enterprise ID from the token resource name.
-//
-// This is a convenience wrapper around ExtractResourceField.
-func GetEnrollmentTokenEnterpriseID(token *androidmanagement.EnrollmentToken) string {
-	if token == nil || token.Name == "" {
-		return ""
-	}
-	return ExtractResourceField(token.Name, "EnterpriseID")
-}
 
 // IsEnrollmentTokenExpired checks if the enrollment token has expired.
 func IsEnrollmentTokenExpired(token *androidmanagement.EnrollmentToken) bool {
@@ -156,13 +98,4 @@ func GenerateQRCodeData(token *androidmanagement.EnrollmentToken, options *QRCod
 	}
 
 	return data
-}
-
-// ToJSON converts QR code data to JSON string for encoding.
-func (qr *QRCodeData) ToJSON() (string, error) {
-	data, err := json.Marshal(qr)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }

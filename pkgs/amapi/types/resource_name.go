@@ -21,11 +21,7 @@
 //	enterpriseID := resourceName.EnterpriseID    // "LC00abc123"
 //	policyID := resourceName.PolicyID          // "default"
 //
-//	// 方式 2: 使用便捷方法（向后兼容）
-//	deviceID := types.GetDeviceID(device)
-//	enterpriseID := types.GetDeviceEnterpriseID(device)
-//
-//	// 方式 3: 直接使用统一函数
+//	// 方式 2: 使用统一字段提取函数
 //	enterpriseID := types.ExtractResourceField("enterprises/LC00abc123/policies/default", "EnterpriseID")
 package types
 
@@ -171,41 +167,6 @@ func detectResourceType(segments []string) string {
 	return "unknown"
 }
 
-// GetID returns the primary resource ID based on the resource type.
-//
-// This is a convenience method that returns the appropriate ID field
-// based on the detected resource type.
-func (rn *ResourceName) GetID() string {
-	if rn == nil {
-		return ""
-	}
-
-	switch rn.ResourceType {
-	case "enterprise":
-		return rn.EnterpriseID
-	case "policy":
-		return rn.PolicyID
-	case "device":
-		return rn.DeviceID
-	case "enrollmentToken":
-		return rn.EnrollmentTokenID
-	case "migrationToken":
-		return rn.MigrationTokenID
-	case "webApp":
-		return rn.WebAppID
-	case "webToken":
-		return rn.WebTokenID
-	case "signupUrl":
-		return rn.SignupURLID
-	default:
-		// Fallback: return last segment
-		if len(rn.Segments) > 0 {
-			return rn.Segments[len(rn.Segments)-1]
-		}
-		return ""
-	}
-}
-
 // GetField extracts a field value by field name from the ResourceName struct.
 //
 // Supported field names:
@@ -285,91 +246,4 @@ func ExtractResourceField(resourceName string, fieldName string) string {
 	}
 
 	return rn.GetField(fieldName)
-}
-
-// ExtractSegment extracts a segment from a resource name by index (0-based).
-//
-// Resource name format: "enterprises/{enterpriseId}/policies/{policyId}"
-//   - ExtractSegment(name, 0) returns "enterprises"
-//   - ExtractSegment(name, 1) returns "{enterpriseId}"
-//   - ExtractSegment(name, 2) returns "policies"
-//   - ExtractSegment(name, 3) returns "{policyId}"
-//
-// Returns empty string if index is out of range or name is empty.
-//
-// Deprecated: Use ParseResourceNameStruct() instead for type-safe access.
-func ExtractSegment(resourceName string, index int) string {
-	if resourceName == "" {
-		return ""
-	}
-
-	segments := strings.Split(resourceName, "/")
-	if index < 0 || index >= len(segments) {
-		return ""
-	}
-
-	return segments[index]
-}
-
-// ExtractLastSegment extracts the last segment from a resource name.
-//
-// This is commonly used to extract resource IDs:
-//   - "enterprises/LC00abc123" -> "LC00abc123"
-//   - "enterprises/LC00abc123/policies/default" -> "default"
-//   - "enterprises/LC00abc123/devices/device123" -> "device123"
-//
-// Returns empty string if name is empty or has no segments.
-//
-// Deprecated: Use ParseResourceNameStruct() instead for type-safe access.
-func ExtractLastSegment(resourceName string) string {
-	if resourceName == "" {
-		return ""
-	}
-
-	// Find the last '/' and return everything after it
-	lastSlash := strings.LastIndex(resourceName, "/")
-	if lastSlash == -1 {
-		// No slash found, return the whole string (e.g., just an ID)
-		return resourceName
-	}
-
-	if lastSlash == len(resourceName)-1 {
-		// Last character is '/', invalid format
-		return ""
-	}
-
-	return resourceName[lastSlash+1:]
-}
-
-// ExtractEnterpriseID extracts the enterprise ID from any resource name.
-//
-// Works with any resource name format:
-//   - "enterprises/LC00abc123" -> "LC00abc123"
-//   - "enterprises/LC00abc123/policies/default" -> "LC00abc123"
-//   - "enterprises/LC00abc123/devices/device123" -> "LC00abc123"
-//
-// Returns empty string if:
-//   - name is empty
-//   - name doesn't start with "enterprises/"
-//   - enterprise ID segment is missing
-//
-// Deprecated: Use ParseResourceNameStruct() instead for type-safe access.
-func ExtractEnterpriseID(resourceName string) string {
-	return ExtractResourceField(resourceName, "EnterpriseID")
-}
-
-// ParseResourceName parses a resource name and returns all segments.
-//
-// Example:
-//   - "enterprises/LC00abc123/policies/default" -> ["enterprises", "LC00abc123", "policies", "default"]
-//
-// Returns nil if name is empty.
-//
-// Deprecated: Use ParseResourceNameStruct() instead for structured access.
-func ParseResourceName(resourceName string) []string {
-	rn := ParseResourceNameStruct(resourceName)
-	if rn == nil || len(rn.Segments) == 0 {
-		return nil
-	}
-	return rn.Segments
 }

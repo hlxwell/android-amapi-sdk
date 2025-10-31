@@ -514,15 +514,34 @@ log.Printf("策略已更新")
 
 ```go
 // 添加必需应用
-policy.AddApplication(types.NewRequiredApp("com.company.vpn"))
-policy.AddApplication(types.NewRequiredApp("com.company.security"))
+types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+    PackageName:     "com.company.vpn",
+    InstallType:     string(types.InstallTypeRequired),
+    LockTaskAllowed: true,
+})
+types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+    PackageName:     "com.company.security",
+    InstallType:     string(types.InstallTypeRequired),
+    LockTaskAllowed: true,
+})
 
 // 添加 Kiosk 模式应用
-policy.AddApplication(types.NewKioskApp("com.company.kioskapp"))
+types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+    PackageName:             "com.company.kioskapp",
+    InstallType:             string(types.InstallTypeKiosk),
+    LockTaskAllowed:         true,
+    DefaultPermissionPolicy: "GRANT",
+})
 
 // 阻止特定应用
-policy.AddApplication(types.NewBlockedApp("com.facebook.katana"))
-policy.AddApplication(types.NewBlockedApp("com.instagram.android"))
+types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+    PackageName: "com.facebook.katana",
+    InstallType: string(types.InstallTypeBlocked),
+})
+types.AddApplication(policy, &androidmanagement.ApplicationPolicy{
+    PackageName: "com.instagram.android",
+    InstallType: string(types.InstallTypeBlocked),
+})
 
 // 更新策略
 updated, err := c.Policies().UpdateByID("LC00abc123", "my-policy", policy)
@@ -720,7 +739,7 @@ log.Printf("高级令牌已创建: %s", token.GetID())
 qrOptions := &types.QRCodeOptions{
     WiFiSSID:         "CompanyWiFi",
     WiFiPassword:     "password123",
-    WiFiSecurityType: types.WiFiSecurityTypeWPA2,
+    WiFiSecurityType: "WPA2",
     SkipSetupWizard:  true,
     Locale:           "zh_CN",
 }
@@ -735,8 +754,11 @@ if err != nil {
 }
 
 // 获取 QR 码 JSON 数据
-qrJSON, _ := qrData.ToJSON()
-log.Printf("QR 码数据: %s", qrJSON)
+qrJSON, err := json.Marshal(qrData)
+if err != nil {
+    log.Fatal(err)
+}
+log.Printf("QR 码数据: %s", string(qrJSON))
 
 // 或者获取可扫描的字符串
 qrString := qrData.ToQRString()
@@ -947,7 +969,12 @@ if customPolicy.Applications == nil {
     customPolicy.Applications = []*androidmanagement.ApplicationPolicy{}
 }
 customPolicy.Applications = append(customPolicy.Applications,
-    types.NewRequiredApp("com.company.app"))
+    &androidmanagement.ApplicationPolicy{
+        PackageName:     "com.company.app",
+        InstallType:     string(types.InstallTypeRequired),
+        LockTaskAllowed: true,
+    },
+)
 
 policy, err = c.Policies().CreateByEnterpriseID(
     "LC00abc123",
@@ -975,11 +1002,29 @@ if policy.Applications == nil {
     policy.Applications = []*androidmanagement.ApplicationPolicy{}
 }
 policy.Applications = append(policy.Applications,
-    types.NewRequiredApp("com.company.vpn"),
-    types.NewRequiredApp("com.company.mail"),
-    types.NewRequiredApp("com.company.chat"),
-    types.NewBlockedApp("com.facebook.katana"),
-    types.NewBlockedApp("com.instagram.android"),
+    &androidmanagement.ApplicationPolicy{
+        PackageName:     "com.company.vpn",
+        InstallType:     string(types.InstallTypeRequired),
+        LockTaskAllowed: true,
+    },
+    &androidmanagement.ApplicationPolicy{
+        PackageName:     "com.company.mail",
+        InstallType:     string(types.InstallTypeRequired),
+        LockTaskAllowed: true,
+    },
+    &androidmanagement.ApplicationPolicy{
+        PackageName:     "com.company.chat",
+        InstallType:     string(types.InstallTypeRequired),
+        LockTaskAllowed: true,
+    },
+    &androidmanagement.ApplicationPolicy{
+        PackageName: "com.facebook.katana",
+        InstallType: string(types.InstallTypeBlocked),
+    },
+    &androidmanagement.ApplicationPolicy{
+        PackageName: "com.instagram.android",
+        InstallType: string(types.InstallTypeBlocked),
+    },
 )
 
 // 创建策略
@@ -1595,7 +1640,12 @@ func main() {
         customPolicy.Applications = []*androidmanagement.ApplicationPolicy{}
     }
     customPolicy.Applications = append(customPolicy.Applications,
-        types.NewRequiredApp("com.company.vpn"))
+        &androidmanagement.ApplicationPolicy{
+            PackageName:     "com.company.vpn",
+            InstallType:     string(types.InstallTypeRequired),
+            LockTaskAllowed: true,
+        },
+    )
 
     createdPolicy, err := c.Policies().CreateByEnterpriseID(
         enterpriseID,
@@ -1622,7 +1672,7 @@ func main() {
     qrOptions := &types.QRCodeOptions{
         WiFiSSID:         "CompanyWiFi",
         WiFiPassword:     "password123",
-        WiFiSecurityType: types.WiFiSecurityTypeWPA2,
+        WiFiSecurityType: "WPA2",
         SkipSetupWizard:  true,
         Locale:           "zh_CN",
     }
