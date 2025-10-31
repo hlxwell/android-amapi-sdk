@@ -2,6 +2,7 @@
 package utils
 
 import (
+	"context"
 	"math/rand"
 	"time"
 
@@ -51,7 +52,8 @@ func NewRetryHandler(config RetryConfig) *RetryHandler {
 }
 
 // Execute executes an operation with retry logic.
-func (r *RetryHandler) Execute(operation func() error) error {
+// For compatibility with interface, operationID is ignored for local retry handler.
+func (r *RetryHandler) Execute(ctx context.Context, operationID string, operation func() error) error {
 	if !r.config.EnableRetry {
 		return operation()
 	}
@@ -96,6 +98,11 @@ func (r *RetryHandler) Execute(operation func() error) error {
 
 	return types.NewErrorWithCause(types.ErrCodeRetryExhausted,
 		"retry attempts exhausted", lastErr)
+}
+
+// Close closes the retry handler (no-op for local handler).
+func (r *RetryHandler) Close() error {
+	return nil
 }
 
 // calculateDelay calculates the delay for the given attempt using exponential backoff.

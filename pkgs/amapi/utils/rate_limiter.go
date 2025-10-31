@@ -34,8 +34,14 @@ func (rl *RateLimiter) Wait(ctx context.Context) error {
 	return rl.limiter.Wait(ctx)
 }
 
+// Close closes the rate limiter (no-op for local limiter).
+func (rl *RateLimiter) Close() error {
+	return nil
+}
+
 // Allow checks if a request is allowed without waiting.
-func (rl *RateLimiter) Allow() bool {
+// For compatibility with interface, accepts context but ignores it for local limiter.
+func (rl *RateLimiter) Allow(ctx context.Context) bool {
 	return rl.limiter.Allow()
 }
 
