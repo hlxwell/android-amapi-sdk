@@ -21,17 +21,13 @@ func (c *Client) Enterprises() *EnterpriseService {
 }
 
 // GenerateSignupURL generates a signup URL for enterprise creation.
-func (es *EnterpriseService) GenerateSignupURL(req *types.SignupURLRequest) (*types.EnterpriseSignupURL, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "signup URL request is required")
+func (es *EnterpriseService) GenerateSignupURL(projectID, callbackURL, adminEmail, enterpriseDisplayName, locale string) (*types.EnterpriseSignupURL, error) {
+	if projectID == "" {
+		projectID = es.client.config.ProjectID
 	}
 
-	if req.ProjectID == "" {
-		req.ProjectID = es.client.config.ProjectID
-	}
-
-	if req.CallbackURL == "" {
-		req.CallbackURL = es.client.config.CallbackURL
+	if callbackURL == "" {
+		callbackURL = es.client.config.CallbackURL
 	}
 
 	var result *androidmanagement.SignupUrl
@@ -39,15 +35,18 @@ func (es *EnterpriseService) GenerateSignupURL(req *types.SignupURLRequest) (*ty
 
 	err = es.client.executeAPICall(func() error {
 		call := es.client.service.SignupUrls.Create()
-		call.ProjectId(req.ProjectID)
+		call.ProjectId(projectID)
 
-		if req.CallbackURL != "" {
-			call.CallbackUrl(req.CallbackURL)
+		if callbackURL != "" {
+			call.CallbackUrl(callbackURL)
 		}
 
-		if req.AdminEmail != "" {
-			call.AdminEmail(req.AdminEmail)
+		if adminEmail != "" {
+			call.AdminEmail(adminEmail)
 		}
+
+		// Note: EnterpriseDisplayName and Locale are not available in the API
+		// They are accepted as parameters but not used
 
 		result, err = call.Context(es.client.ctx).Do()
 		return err
@@ -59,8 +58,8 @@ func (es *EnterpriseService) GenerateSignupURL(req *types.SignupURLRequest) (*ty
 
 	signupURL := &types.EnterpriseSignupURL{
 		URL:         result.Url,
-		CallbackURL: req.CallbackURL,
-		ProjectID:   req.ProjectID,
+		CallbackURL: callbackURL,
+		ProjectID:   projectID,
 		CreatedAt:   time.Now(),
 	}
 
@@ -75,24 +74,19 @@ func (es *EnterpriseService) GenerateSignupURL(req *types.SignupURLRequest) (*ty
 }
 
 // Create creates a new enterprise.
-func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*androidmanagement.Enterprise, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise create request is required")
-	}
-
-	if req.SignupToken == "" {
+func (es *EnterpriseService) Create(signupToken, projectID, enterpriseToken string, contactInfo *androidmanagement.ContactInfo) (*androidmanagement.Enterprise, error) {
+	if signupToken == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "signup token is required")
 	}
 
-	if req.ProjectID == "" {
-		req.ProjectID = es.client.config.ProjectID
+	if projectID == "" {
+		projectID = es.client.config.ProjectID
 	}
 
 	// Create enterprise object
 	enterprise := &androidmanagement.Enterprise{}
-
-	if req.ContactInfo != nil {
-		enterprise.ContactInfo = req.ContactInfo
+	if contactInfo != nil {
+		enterprise.ContactInfo = contactInfo
 	}
 
 	var result *androidmanagement.Enterprise
@@ -100,11 +94,11 @@ func (es *EnterpriseService) Create(req *types.EnterpriseCreateRequest) (*androi
 
 	err = es.client.executeAPICall(func() error {
 		call := es.client.service.Enterprises.Create(enterprise)
-		call.ProjectId(req.ProjectID)
-		call.SignupUrlName(req.SignupToken)
+		call.ProjectId(projectID)
+		call.SignupUrlName(signupToken)
 
-		if req.EnterpriseToken != "" {
-			call.EnterpriseToken(req.EnterpriseToken)
+		if enterpriseToken != "" {
+			call.EnterpriseToken(enterpriseToken)
 		}
 
 		result, err = call.Context(es.client.ctx).Do()
@@ -150,13 +144,9 @@ func (es *EnterpriseService) GetByID(enterpriseID string) (*androidmanagement.En
 }
 
 // Update updates an enterprise.
-func (es *EnterpriseService) Update(enterpriseName string, req *types.EnterpriseUpdateRequest) (*androidmanagement.Enterprise, error) {
+func (es *EnterpriseService) Update(enterpriseName string, primaryColor *int64, logo *androidmanagement.ExternalData, contactInfo *androidmanagement.ContactInfo, enabledNotificationTypes []string, appAutoApprovalEnabled *bool, termsAndConditions []*androidmanagement.TermsAndConditions) (*androidmanagement.Enterprise, error) {
 	if enterpriseName == "" {
 		return nil, types.ErrInvalidEnterpriseID
-	}
-
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise update request is required")
 	}
 
 	// Get current enterprise
@@ -165,29 +155,29 @@ func (es *EnterpriseService) Update(enterpriseName string, req *types.Enterprise
 		return nil, err
 	}
 
-	// Apply updates directly
-	if req.PrimaryColor != nil {
-		current.PrimaryColor = *req.PrimaryColor
+	// Apply updates if provided
+	if primaryColor != nil {
+		current.PrimaryColor = *primaryColor
 	}
 
-	if req.Logo != nil {
-		current.Logo = req.Logo
+	if logo != nil {
+		current.Logo = logo
 	}
 
-	if req.ContactInfo != nil {
-		current.ContactInfo = req.ContactInfo
+	if contactInfo != nil {
+		current.ContactInfo = contactInfo
 	}
 
-	if req.EnabledNotificationTypes != nil {
-		current.EnabledNotificationTypes = req.EnabledNotificationTypes
+	if enabledNotificationTypes != nil {
+		current.EnabledNotificationTypes = enabledNotificationTypes
 	}
 
-	if req.AppAutoApprovalEnabled != nil {
-		current.AppAutoApprovalEnabled = *req.AppAutoApprovalEnabled
+	if appAutoApprovalEnabled != nil {
+		current.AppAutoApprovalEnabled = *appAutoApprovalEnabled
 	}
 
-	if req.TermsAndConditions != nil {
-		current.TermsAndConditions = req.TermsAndConditions
+	if termsAndConditions != nil {
+		current.TermsAndConditions = termsAndConditions
 	}
 
 	var result *androidmanagement.Enterprise
@@ -205,13 +195,9 @@ func (es *EnterpriseService) Update(enterpriseName string, req *types.Enterprise
 }
 
 // List lists enterprises in the project.
-func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.ListResult[*androidmanagement.Enterprise], error) {
-	if req == nil {
-		req = &types.EnterpriseListRequest{}
-	}
-
-	if req.ProjectID == "" {
-		req.ProjectID = es.client.config.ProjectID
+func (es *EnterpriseService) List(projectID string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.Enterprise], error) {
+	if projectID == "" {
+		projectID = es.client.config.ProjectID
 	}
 
 	var result *androidmanagement.ListEnterprisesResponse
@@ -219,14 +205,14 @@ func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.List
 
 	err = es.client.executeAPICall(func() error {
 		call := es.client.service.Enterprises.List()
-		call.ProjectId(req.ProjectID)
+		call.ProjectId(projectID)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(es.client.ctx).Do()
@@ -248,13 +234,13 @@ func (es *EnterpriseService) List(req *types.EnterpriseListRequest) (*types.List
 }
 
 // Delete deletes an enterprise.
-func (es *EnterpriseService) Delete(req *types.EnterpriseDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (es *EnterpriseService) Delete(enterpriseName string) error {
+	if enterpriseName == "" {
 		return types.ErrInvalidEnterpriseID
 	}
 
 	err := es.client.executeAPICall(func() error {
-		_, err := es.client.service.Enterprises.Delete(req.Name).Context(es.client.ctx).Do()
+		_, err := es.client.service.Enterprises.Delete(enterpriseName).Context(es.client.ctx).Do()
 		return err
 	})
 
@@ -266,16 +252,13 @@ func (es *EnterpriseService) Delete(req *types.EnterpriseDeleteRequest) error {
 }
 
 // DeleteByID deletes an enterprise by its ID.
-func (es *EnterpriseService) DeleteByID(enterpriseID string, force bool) error {
+func (es *EnterpriseService) DeleteByID(enterpriseID string) error {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	return es.Delete(&types.EnterpriseDeleteRequest{
-		Name:  enterpriseName,
-		Force: force,
-	})
+	return es.Delete(enterpriseName)
 }
 
 // CompleteSignup completes the enterprise signup process.
@@ -284,13 +267,7 @@ func (es *EnterpriseService) CompleteSignup(signupToken, enterpriseToken string)
 		return nil, types.NewError(types.ErrCodeInvalidInput, "signup token is required")
 	}
 
-	req := &types.EnterpriseCreateRequest{
-		SignupToken:     signupToken,
-		EnterpriseToken: enterpriseToken,
-		ProjectID:       es.client.config.ProjectID,
-	}
-
-	return es.Create(req)
+	return es.Create(signupToken, es.client.config.ProjectID, enterpriseToken, nil)
 }
 
 // EnableNotifications enables specific notification types for an enterprise.
@@ -324,11 +301,7 @@ func (es *EnterpriseService) EnableNotifications(enterpriseName string, notifica
 		allTypes = append(allTypes, nt)
 	}
 
-	req := &types.EnterpriseUpdateRequest{
-		EnabledNotificationTypes: allTypes,
-	}
-
-	return es.Update(enterpriseName, req)
+	return es.Update(enterpriseName, nil, nil, nil, allTypes, nil, nil)
 }
 
 // DisableNotifications disables specific notification types for an enterprise.
@@ -360,11 +333,7 @@ func (es *EnterpriseService) DisableNotifications(enterpriseName string, notific
 		}
 	}
 
-	req := &types.EnterpriseUpdateRequest{
-		EnabledNotificationTypes: remainingTypes,
-	}
-
-	return es.Update(enterpriseName, req)
+	return es.Update(enterpriseName, nil, nil, nil, remainingTypes, nil, nil)
 }
 
 // SetPubSubTopic sets the Pub/Sub topic for enterprise notifications.
@@ -429,25 +398,21 @@ func (es *EnterpriseService) GetApplication(enterpriseName string, packageName s
 
 // GenerateEnterpriseUpgradeURL generates an upgrade URL for an existing enterprise.
 // Note: This method is a placeholder as the actual API method may not be available
-func (es *EnterpriseService) GenerateEnterpriseUpgradeURL(req *types.EnterpriseUpgradeURLRequest) (*types.EnterpriseUpgradeURL, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise upgrade URL request is required")
-	}
-
-	if req.EnterpriseName == "" {
+func (es *EnterpriseService) GenerateEnterpriseUpgradeURL(enterpriseName, projectID, callbackURL, adminEmail, locale string) (*types.EnterpriseUpgradeURL, error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
-	if req.ProjectID == "" {
-		req.ProjectID = es.client.config.ProjectID
+	if projectID == "" {
+		projectID = es.client.config.ProjectID
 	}
 
 	// For now, return a placeholder URL
 	// In a real implementation, this would call the actual API
 	upgradeURL := &types.EnterpriseUpgradeURL{
-		URL:            "https://play.google.com/console/developers/upgrade?project=" + req.ProjectID,
-		EnterpriseName: req.EnterpriseName,
-		ProjectID:      req.ProjectID,
+		URL:            "https://play.google.com/console/developers/upgrade?project=" + projectID,
+		EnterpriseName: enterpriseName,
+		ProjectID:      projectID,
 		CreatedAt:      time.Now(),
 	}
 

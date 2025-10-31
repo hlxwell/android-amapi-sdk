@@ -19,18 +19,12 @@ func (c *Client) WebTokens() *WebTokenService {
 }
 
 // Create creates a new web token.
-func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*androidmanagement.WebToken, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "web token create request is required")
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, err
+func (wts *WebTokenService) Create(enterpriseName, parentFrameUrl string, enabledFeatures []string) (*androidmanagement.WebToken, error) {
+	if enterpriseName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
 	// Create web token object with required parent field
-	parentFrameUrl := req.ParentFrameUrl
 	if parentFrameUrl == "" {
 		// Use a safe default if not specified
 		parentFrameUrl = "https://localhost"
@@ -41,8 +35,8 @@ func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*androidma
 	}
 
 	// Set enabled features if provided (replaces deprecated permissions)
-	if len(req.EnabledFeatures) > 0 {
-		token.EnabledFeatures = req.EnabledFeatures
+	if len(enabledFeatures) > 0 {
+		token.EnabledFeatures = enabledFeatures
 	}
 	// Note: If EnabledFeatures is empty, all features are enabled by default
 
@@ -50,7 +44,7 @@ func (wts *WebTokenService) Create(req *types.WebTokenCreateRequest) (*androidma
 	var err error
 
 	err = wts.client.executeAPICall(func() error {
-		result, err = wts.client.service.Enterprises.WebTokens.Create(req.EnterpriseName, token).Context(wts.client.ctx).Do()
+		result, err = wts.client.service.Enterprises.WebTokens.Create(enterpriseName, token).Context(wts.client.ctx).Do()
 		return err
 	})
 
@@ -68,13 +62,7 @@ func (wts *WebTokenService) CreateByEnterpriseID(enterpriseID string, duration t
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-
-	req := &types.WebTokenCreateRequest{
-		EnterpriseName: enterpriseName,
-		Duration:       duration,
-	}
-
-	return wts.Create(req)
+	return wts.Create(enterpriseName, "", nil)
 }
 
 // CreateWithOptions creates a new web token with custom options.
@@ -84,15 +72,7 @@ func (wts *WebTokenService) CreateWithOptions(enterpriseID string, duration time
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-
-	req := &types.WebTokenCreateRequest{
-		EnterpriseName:  enterpriseName,
-		Duration:        duration,
-		ParentFrameUrl:  parentFrameUrl,
-		EnabledFeatures: enabledFeatures,
-	}
-
-	return wts.Create(req)
+	return wts.Create(enterpriseName, parentFrameUrl, enabledFeatures)
 }
 
 // CreateQuick creates a web token with default settings (24 hours).

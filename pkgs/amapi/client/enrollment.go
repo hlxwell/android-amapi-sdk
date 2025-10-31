@@ -19,44 +19,43 @@ func (c *Client) EnrollmentTokens() *EnrollmentService {
 }
 
 // Create creates a new enrollment token.
-func (es *EnrollmentService) Create(req *types.EnrollmentTokenCreateRequest) (*androidmanagement.EnrollmentToken, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "enrollment token create request is required")
+func (es *EnrollmentService) Create(enterpriseName, policyName string, duration time.Duration, allowPersonalUsage, oneTimeOnly bool, user *androidmanagement.User) (*androidmanagement.EnrollmentToken, error) {
+	if enterpriseName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, err
+	if policyName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "policy name is required")
 	}
 
 	// Create enrollment token object
 	token := &androidmanagement.EnrollmentToken{
-		PolicyName:  req.PolicyName,
-		OneTimeOnly: req.OneTimeOnly,
+		PolicyName:  policyName,
+		OneTimeOnly: oneTimeOnly,
 	}
 
 	// Set AllowPersonalUsage based on bool value
-	if req.AllowPersonalUsage {
+	if allowPersonalUsage {
 		token.AllowPersonalUsage = "PERSONAL_USAGE_ALLOWED"
 	} else {
 		token.AllowPersonalUsage = "PERSONAL_USAGE_DISALLOWED"
 	}
 
 	// Set duration
-	if req.Duration > 0 {
-		token.Duration = req.Duration.String()
+	if duration > 0 {
+		token.Duration = duration.String()
 	}
 
 	// Set user information
-	if req.User != nil {
-		token.User = req.User
+	if user != nil {
+		token.User = user
 	}
 
 	var result *androidmanagement.EnrollmentToken
 	var err error
 
 	err = es.client.executeAPICall(func() error {
-		result, err = es.client.service.Enterprises.EnrollmentTokens.Create(req.EnterpriseName, token).Context(es.client.ctx).Do()
+		result, err = es.client.service.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(es.client.ctx).Do()
 		return err
 	})
 
@@ -80,13 +79,7 @@ func (es *EnrollmentService) CreateByEnterpriseID(enterpriseID, policyID string,
 	enterpriseName := buildEnterpriseName(enterpriseID)
 	policyName := buildPolicyName(enterpriseID, policyID)
 
-	req := &types.EnrollmentTokenCreateRequest{
-		EnterpriseName: enterpriseName,
-		PolicyName:     policyName,
-		Duration:       duration,
-	}
-
-	return es.Create(req)
+	return es.Create(enterpriseName, policyName, duration, false, false, nil)
 }
 
 // CreateQuick creates an enrollment token with default settings.
@@ -107,14 +100,7 @@ func (es *EnrollmentService) CreateForWorkProfile(enterpriseID, policyID string,
 	enterpriseName := buildEnterpriseName(enterpriseID)
 	policyName := buildPolicyName(enterpriseID, policyID)
 
-	req := &types.EnrollmentTokenCreateRequest{
-		EnterpriseName:     enterpriseName,
-		PolicyName:         policyName,
-		Duration:           duration,
-		AllowPersonalUsage: true, // Enable personal usage for work profile
-	}
-
-	return es.Create(req)
+	return es.Create(enterpriseName, policyName, duration, true, false, nil)
 }
 
 // Get retrieves an enrollment token by its resource name.
@@ -153,8 +139,8 @@ func (es *EnrollmentService) GetByID(enterpriseID, tokenID string) (*androidmana
 }
 
 // List lists enrollment tokens for an enterprise.
-func (es *EnrollmentService) List(req *types.EnrollmentTokenListRequest) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
-	if req == nil || req.EnterpriseName == "" {
+func (es *EnrollmentService) List(enterpriseName string, pageSize int, pageToken string, policyName string, includeExpired bool) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
@@ -162,14 +148,14 @@ func (es *EnrollmentService) List(req *types.EnrollmentTokenListRequest) (*types
 	var err error
 
 	err = es.client.executeAPICall(func() error {
-		call := es.client.service.Enterprises.EnrollmentTokens.List(req.EnterpriseName)
+		call := es.client.service.Enterprises.EnrollmentTokens.List(enterpriseName)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(es.client.ctx).Do()
@@ -185,16 +171,16 @@ func (es *EnrollmentService) List(req *types.EnrollmentTokenListRequest) (*types
 	copy(tokens, result.EnrollmentTokens)
 
 	// Apply client-side filtering
-	if req.PolicyName != "" || !req.IncludeExpired {
+	if policyName != "" || !includeExpired {
 		filteredTokens := make([]*androidmanagement.EnrollmentToken, 0)
 		for _, token := range tokens {
 			// Filter by policy name
-			if req.PolicyName != "" && token.PolicyName != req.PolicyName {
+			if policyName != "" && token.PolicyName != policyName {
 				continue
 			}
 
 			// Filter expired tokens if requested
-			if !req.IncludeExpired {
+			if !includeExpired {
 				// Use helper function to check expiration
 				if token.ExpirationTimestamp != "" {
 					expiration, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
@@ -216,31 +202,23 @@ func (es *EnrollmentService) List(req *types.EnrollmentTokenListRequest) (*types
 }
 
 // ListByEnterpriseID lists enrollment tokens for an enterprise by enterprise ID.
-func (es *EnrollmentService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
+func (es *EnrollmentService) ListByEnterpriseID(enterpriseID string, pageSize int, pageToken string, policyName string, includeExpired bool) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.EnrollmentTokenListRequest{
-		EnterpriseName: enterpriseName,
-	}
-
-	if options != nil {
-		req.ListOptions = *options
-	}
-
-	return es.List(req)
+	return es.List(enterpriseName, pageSize, pageToken, policyName, includeExpired)
 }
 
 // Delete deletes an enrollment token.
-func (es *EnrollmentService) Delete(req *types.EnrollmentTokenDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (es *EnrollmentService) Delete(tokenName string) error {
+	if tokenName == "" {
 		return types.ErrInvalidTokenID
 	}
 
 	err := es.client.executeAPICall(func() error {
-		_, err := es.client.service.Enterprises.EnrollmentTokens.Delete(req.Name).Context(es.client.ctx).Do()
+		_, err := es.client.service.Enterprises.EnrollmentTokens.Delete(tokenName).Context(es.client.ctx).Do()
 		return err
 	})
 
@@ -262,11 +240,7 @@ func (es *EnrollmentService) DeleteByID(enterpriseID, tokenID string) error {
 	}
 
 	tokenName := buildEnrollmentTokenName(enterpriseID, tokenID)
-	req := &types.EnrollmentTokenDeleteRequest{
-		Name: tokenName,
-	}
-
-	return es.Delete(req)
+	return es.Delete(tokenName)
 }
 
 // GenerateQRCode generates QR code data for an enrollment token.
@@ -302,33 +276,20 @@ func (es *EnrollmentService) GenerateQRCodeByID(enterpriseID, tokenID string, op
 
 // GetActiveTokens returns all non-expired enrollment tokens for an enterprise.
 func (es *EnrollmentService) GetActiveTokens(enterpriseID string) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
-	req := &types.EnrollmentTokenListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		IncludeExpired: false,
-	}
-
-	return es.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return es.List(enterpriseName, 0, "", "", false)
 }
 
 // GetTokensForPolicy returns all enrollment tokens for a specific policy.
 func (es *EnrollmentService) GetTokensForPolicy(enterpriseID, policyID string) (*types.ListResult[*androidmanagement.EnrollmentToken], error) {
+	enterpriseName := buildEnterpriseName(enterpriseID)
 	policyName := buildPolicyName(enterpriseID, policyID)
-	req := &types.EnrollmentTokenListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		PolicyName:     policyName,
-		IncludeExpired: false,
-	}
-
-	return es.List(req)
+	return es.List(enterpriseName, 0, "", policyName, false)
 }
 
 // RevokeToken revokes an enrollment token by deleting it.
 func (es *EnrollmentService) RevokeToken(tokenName string) error {
-	req := &types.EnrollmentTokenDeleteRequest{
-		Name: tokenName,
-	}
-
-	return es.Delete(req)
+	return es.Delete(tokenName)
 }
 
 // RevokeTokenByID revokes an enrollment token by enterprise ID and token ID.
@@ -337,9 +298,9 @@ func (es *EnrollmentService) RevokeTokenByID(enterpriseID, tokenID string) error
 }
 
 // CreateWithQRCode creates an enrollment token and generates QR code data.
-func (es *EnrollmentService) CreateWithQRCode(req *types.EnrollmentTokenCreateRequest, qrOptions *types.QRCodeOptions) (*androidmanagement.EnrollmentToken, *types.QRCodeData, error) {
+func (es *EnrollmentService) CreateWithQRCode(enterpriseName, policyName string, duration time.Duration, allowPersonalUsage, oneTimeOnly bool, user *androidmanagement.User, qrOptions *types.QRCodeOptions) (*androidmanagement.EnrollmentToken, *types.QRCodeData, error) {
 	// Create the enrollment token
-	token, err := es.Create(req)
+	token, err := es.Create(enterpriseName, policyName, duration, allowPersonalUsage, oneTimeOnly, user)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -366,13 +327,7 @@ func (es *EnrollmentService) CreateBulkTokens(enterpriseID, policyID string, cou
 	tokens := make([]*androidmanagement.EnrollmentToken, 0, count)
 
 	for i := 0; i < count; i++ {
-		req := &types.EnrollmentTokenCreateRequest{
-			EnterpriseName: enterpriseName,
-			PolicyName:     policyName,
-			Duration:       duration,
-		}
-
-		token, err := es.Create(req)
+		token, err := es.Create(enterpriseName, policyName, duration, false, false, nil)
 		if err != nil {
 			return tokens, err // Return partial results with error
 		}
@@ -399,16 +354,11 @@ func (es *EnrollmentService) ExtendTokenExpiration(tokenName string, newDuration
 	}
 
 	// Create a new token with the same policy but new duration
-	req := &types.EnrollmentTokenCreateRequest{
-		EnterpriseName:     buildEnterpriseName(enterpriseID),
-		PolicyName:         existingToken.PolicyName,
-		Duration:           newDuration,
-		AllowPersonalUsage: types.GetEnrollmentTokenAllowPersonalUsageBool(existingToken),
-		OneTimeOnly:        existingToken.OneTimeOnly,
-	}
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	allowPersonalUsage := types.GetEnrollmentTokenAllowPersonalUsageBool(existingToken)
 
 	// Create new token
-	newToken, err := es.Create(req)
+	newToken, err := es.Create(enterpriseName, existingToken.PolicyName, newDuration, allowPersonalUsage, existingToken.OneTimeOnly, existingToken.User)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +371,7 @@ func (es *EnrollmentService) ExtendTokenExpiration(tokenName string, newDuration
 
 // GetTokenStatistics returns statistics about enrollment tokens for an enterprise.
 func (es *EnrollmentService) GetTokenStatistics(enterpriseID string) (map[string]int, error) {
-	tokens, err := es.ListByEnterpriseID(enterpriseID, nil)
+	tokens, err := es.ListByEnterpriseID(enterpriseID, 0, "", "", true)
 	if err != nil {
 		return nil, err
 	}

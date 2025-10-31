@@ -19,28 +19,27 @@ func (c *Client) WebApps() *WebAppService {
 }
 
 // Create creates a new web app.
-func (was *WebAppService) Create(req *types.WebAppCreateRequest) (*androidmanagement.WebApp, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "web app create request is required")
+func (was *WebAppService) Create(enterpriseName, startURL string, icons []*androidmanagement.WebAppIcon, versionCode int64) (*androidmanagement.WebApp, error) {
+	if enterpriseName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, err
+	if startURL == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "start URL is required")
 	}
 
 	// Create web app object
 	webApp := &androidmanagement.WebApp{
-		StartUrl:    req.StartURL,
-		Icons:       req.Icons,
-		VersionCode: req.VersionCode,
+		StartUrl:    startURL,
+		Icons:       icons,
+		VersionCode: versionCode,
 	}
 
 	var result *androidmanagement.WebApp
 	var err error
 
 	err = was.client.executeAPICall(func() error {
-		result, err = was.client.service.Enterprises.WebApps.Create(req.EnterpriseName, webApp).Context(was.client.ctx).Do()
+		result, err = was.client.service.Enterprises.WebApps.Create(enterpriseName, webApp).Context(was.client.ctx).Do()
 		return err
 	})
 
@@ -58,14 +57,7 @@ func (was *WebAppService) CreateByEnterpriseID(enterpriseID, displayName, startU
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-
-	req := &types.WebAppCreateRequest{
-		EnterpriseName: enterpriseName,
-		DisplayName:    displayName,
-		StartURL:       startURL,
-	}
-
-	return was.Create(req)
+	return was.Create(enterpriseName, startURL, nil, 0)
 }
 
 // Get retrieves a web app by its resource name.
@@ -104,44 +96,24 @@ func (was *WebAppService) GetByID(enterpriseID, webAppID string) (*androidmanage
 }
 
 // Update updates an existing web app.
-func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*androidmanagement.WebApp, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "web app update request is required")
-	}
-
-	if req.Name == "" {
+func (was *WebAppService) Update(webAppName string, webApp *androidmanagement.WebApp, updateMask []string) (*androidmanagement.WebApp, error) {
+	if webAppName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "web app name is required")
 	}
 
-	// Get current web app
-	webApp, err := was.Get(req.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply updates
-	// Note: DisplayName field may not be available in the API
-
-	if req.StartURL != "" {
-		webApp.StartUrl = req.StartURL
-	}
-
-	if req.Icons != nil {
-		webApp.Icons = req.Icons
-	}
-
-	if req.VersionCode != 0 {
-		webApp.VersionCode = req.VersionCode
+	if webApp == nil {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "web app is required")
 	}
 
 	var result *androidmanagement.WebApp
+	var err error
 
 	err = was.client.executeAPICall(func() error {
-		call := was.client.service.Enterprises.WebApps.Patch(req.Name, webApp)
+		call := was.client.service.Enterprises.WebApps.Patch(webAppName, webApp)
 
-		if len(req.UpdateMask) > 0 {
+		if len(updateMask) > 0 {
 			// Set update mask if provided - use comma-separated string
-			maskString := strings.Join(req.UpdateMask, ",")
+			maskString := strings.Join(updateMask, ",")
 			call.UpdateMask(maskString)
 		}
 
@@ -157,7 +129,7 @@ func (was *WebAppService) Update(req *types.WebAppUpdateRequest) (*androidmanage
 }
 
 // UpdateByID updates a web app by enterprise ID and web app ID.
-func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *androidmanagement.WebApp, updateMask []string) (*androidmanagement.WebApp, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -167,19 +139,12 @@ func (was *WebAppService) UpdateByID(enterpriseID, webAppID string, webApp *andr
 	}
 
 	webAppName := buildWebAppName(enterpriseID, webAppID)
-	req := &types.WebAppUpdateRequest{
-		Name:        webAppName,
-		StartURL:    webApp.StartUrl,
-		Icons:       webApp.Icons,
-		VersionCode: webApp.VersionCode,
-	}
-
-	return was.Update(req)
+	return was.Update(webAppName, webApp, updateMask)
 }
 
 // List lists web apps for an enterprise.
-func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[*androidmanagement.WebApp], error) {
-	if req == nil || req.EnterpriseName == "" {
+func (was *WebAppService) List(enterpriseName string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.WebApp], error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
@@ -187,14 +152,14 @@ func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[
 	var err error
 
 	err = was.client.executeAPICall(func() error {
-		call := was.client.service.Enterprises.WebApps.List(req.EnterpriseName)
+		call := was.client.service.Enterprises.WebApps.List(enterpriseName)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(was.client.ctx).Do()
@@ -209,9 +174,6 @@ func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[
 	webApps := make([]*androidmanagement.WebApp, len(result.WebApps))
 	copy(webApps, result.WebApps)
 
-	// Note: ActiveOnly filtering removed as androidmanagement.WebApp doesn't have IsActive field
-	// Filtering can be done by the caller if needed
-
 	return &types.ListResult[*androidmanagement.WebApp]{
 		Items:         webApps,
 		NextPageToken: result.NextPageToken,
@@ -219,31 +181,23 @@ func (was *WebAppService) List(req *types.WebAppListRequest) (*types.ListResult[
 }
 
 // ListByEnterpriseID lists web apps for an enterprise by enterprise ID.
-func (was *WebAppService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.WebApp], error) {
+func (was *WebAppService) ListByEnterpriseID(enterpriseID string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.WebApp], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.WebAppListRequest{
-		EnterpriseName: enterpriseName,
-	}
-
-	if options != nil {
-		req.ListOptions = *options
-	}
-
-	return was.List(req)
+	return was.List(enterpriseName, pageSize, pageToken)
 }
 
 // Delete deletes a web app.
-func (was *WebAppService) Delete(req *types.WebAppDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (was *WebAppService) Delete(webAppName string) error {
+	if webAppName == "" {
 		return types.NewError(types.ErrCodeInvalidInput, "web app name is required")
 	}
 
 	err := was.client.executeAPICall(func() error {
-		_, err := was.client.service.Enterprises.WebApps.Delete(req.Name).Context(was.client.ctx).Do()
+		_, err := was.client.service.Enterprises.WebApps.Delete(webAppName).Context(was.client.ctx).Do()
 		return err
 	})
 
@@ -265,21 +219,13 @@ func (was *WebAppService) DeleteByID(enterpriseID, webAppID string) error {
 	}
 
 	webAppName := buildWebAppName(enterpriseID, webAppID)
-	req := &types.WebAppDeleteRequest{
-		Name: webAppName,
-	}
-
-	return was.Delete(req)
+	return was.Delete(webAppName)
 }
 
 // GetActiveWebApps returns all active web apps for an enterprise.
 func (was *WebAppService) GetActiveWebApps(enterpriseID string) (*types.ListResult[*androidmanagement.WebApp], error) {
-	req := &types.WebAppListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		ActiveOnly:     true,
-	}
-
-	return was.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return was.List(enterpriseName, 0, "")
 }
 
 // Helper function to build web app name

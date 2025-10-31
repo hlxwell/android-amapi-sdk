@@ -17,8 +17,8 @@ func (c *Client) Devices() *DeviceService {
 }
 
 // List lists devices for an enterprise.
-func (ds *DeviceService) List(req *types.DeviceListRequest) (*types.ListResult[*androidmanagement.Device], error) {
-	if req == nil || req.EnterpriseName == "" {
+func (ds *DeviceService) List(enterpriseName string, pageSize int, pageToken string, state types.DeviceState, policyCompliant *bool, userName string) (*types.ListResult[*androidmanagement.Device], error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
@@ -26,14 +26,14 @@ func (ds *DeviceService) List(req *types.DeviceListRequest) (*types.ListResult[*
 	var err error
 
 	err = ds.client.executeAPICall(func() error {
-		call := ds.client.service.Enterprises.Devices.List(req.EnterpriseName)
+		call := ds.client.service.Enterprises.Devices.List(enterpriseName)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(ds.client.ctx).Do()
@@ -49,21 +49,21 @@ func (ds *DeviceService) List(req *types.DeviceListRequest) (*types.ListResult[*
 	copy(devices, result.Devices)
 
 	// Apply client-side filtering if needed
-	if req.State != "" || req.PolicyCompliant != nil || req.UserName != "" {
+	if state != "" || policyCompliant != nil || userName != "" {
 		filteredDevices := make([]*androidmanagement.Device, 0)
 		for _, device := range devices {
 			// Filter by state
-			if req.State != "" && device.State != string(req.State) {
+			if state != "" && device.State != string(state) {
 				continue
 			}
 
 			// Filter by policy compliance
-			if req.PolicyCompliant != nil && device.PolicyCompliant != *req.PolicyCompliant {
+			if policyCompliant != nil && device.PolicyCompliant != *policyCompliant {
 				continue
 			}
 
 			// Filter by user name
-			if req.UserName != "" && device.UserName != req.UserName {
+			if userName != "" && device.UserName != userName {
 				continue
 			}
 
@@ -79,21 +79,13 @@ func (ds *DeviceService) List(req *types.DeviceListRequest) (*types.ListResult[*
 }
 
 // ListByEnterpriseID lists devices for an enterprise by enterprise ID.
-func (ds *DeviceService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.Device], error) {
+func (ds *DeviceService) ListByEnterpriseID(enterpriseID string, pageSize int, pageToken string, state types.DeviceState, policyCompliant *bool, userName string) (*types.ListResult[*androidmanagement.Device], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.DeviceListRequest{
-		EnterpriseName: enterpriseName,
-	}
-
-	if options != nil {
-		req.ListOptions = *options
-	}
-
-	return ds.List(req)
+	return ds.List(enterpriseName, pageSize, pageToken, state, policyCompliant, userName)
 }
 
 // Get retrieves a device by its resource name.
@@ -132,22 +124,20 @@ func (ds *DeviceService) GetByID(enterpriseID, deviceID string) (*androidmanagem
 }
 
 // IssueCommand issues a command to a device.
-func (ds *DeviceService) IssueCommand(req *types.DeviceCommandRequest) (*androidmanagement.Operation, error) {
-	if req == nil || req.DeviceName == "" {
+func (ds *DeviceService) IssueCommand(deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error) {
+	if deviceName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "device name is required")
 	}
 
-	if req.Command == nil {
+	if command == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "command is required")
 	}
-
-	command := req.Command
 
 	var result *androidmanagement.Operation
 	var err error
 
 	err = ds.client.executeAPICall(func() error {
-		result, err = ds.client.service.Enterprises.Devices.IssueCommand(req.DeviceName, command).Context(ds.client.ctx).Do()
+		result, err = ds.client.service.Enterprises.Devices.IssueCommand(deviceName, command).Context(ds.client.ctx).Do()
 		return err
 	})
 
@@ -169,12 +159,7 @@ func (ds *DeviceService) IssueCommandByID(enterpriseID, deviceID string, command
 	}
 
 	deviceName := buildDeviceName(enterpriseID, deviceID)
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // Lock locks a device for the specified duration.
@@ -184,12 +169,7 @@ func (ds *DeviceService) Lock(deviceName string, duration string) (*androidmanag
 		Duration: duration,
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // LockByID locks a device by enterprise ID and device ID.
@@ -212,12 +192,7 @@ func (ds *DeviceService) Reset(deviceName string) (*androidmanagement.Operation,
 		Type: string(types.CommandTypeReset),
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // ResetByID performs a factory reset on a device by enterprise ID and device ID.
@@ -240,12 +215,7 @@ func (ds *DeviceService) Reboot(deviceName string) (*androidmanagement.Operation
 		Type: string(types.CommandTypeReboot),
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // RebootByID reboots a device by enterprise ID and device ID.
@@ -268,12 +238,7 @@ func (ds *DeviceService) RemovePassword(deviceName string) (*androidmanagement.O
 		Type: string(types.CommandTypeRemovePassword),
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // RemovePasswordByID removes the device password/PIN by enterprise ID and device ID.
@@ -298,12 +263,7 @@ func (ds *DeviceService) ClearAppData(deviceName, packageName string) (*androidm
 		// The AMAPI Command structure would need to be extended for this
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // StartLostMode starts lost mode on a device.
@@ -312,12 +272,7 @@ func (ds *DeviceService) StartLostMode(deviceName string) (*androidmanagement.Op
 		Type: string(types.CommandTypeStartLostMode),
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // StopLostMode stops lost mode on a device.
@@ -326,30 +281,18 @@ func (ds *DeviceService) StopLostMode(deviceName string) (*androidmanagement.Ope
 		Type: string(types.CommandTypeStopLostMode),
 	}
 
-	req := &types.DeviceCommandRequest{
-		DeviceName: deviceName,
-		Command:    command,
-	}
-
-	return ds.IssueCommand(req)
+	return ds.IssueCommand(deviceName, command)
 }
 
 // Delete deletes a device (performs a wipe and removes it from management).
-func (ds *DeviceService) Delete(req *types.DeviceDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (ds *DeviceService) Delete(deviceName string) error {
+	if deviceName == "" {
 		return types.ErrInvalidDeviceID
 	}
 
 	err := ds.client.executeAPICall(func() error {
-		call := ds.client.service.Enterprises.Devices.Delete(req.Name)
-
-		if len(req.WipeDataFlags) > 0 {
-			// Convert to comma-separated string if the API expects it
-			// Note: The actual implementation depends on how the API accepts these flags
-		}
-
 		// Note: Delete returns *androidmanagement.Empty, not Operation
-		_, err := call.Context(ds.client.ctx).Do()
+		_, err := ds.client.service.Enterprises.Devices.Delete(deviceName).Context(ds.client.ctx).Do()
 		return err
 	})
 
@@ -361,7 +304,7 @@ func (ds *DeviceService) Delete(req *types.DeviceDeleteRequest) error {
 }
 
 // DeleteByID deletes a device by enterprise ID and device ID.
-func (ds *DeviceService) DeleteByID(enterpriseID, deviceID string, wipeExternalStorage bool) error {
+func (ds *DeviceService) DeleteByID(enterpriseID, deviceID string) error {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return err
 	}
@@ -371,16 +314,7 @@ func (ds *DeviceService) DeleteByID(enterpriseID, deviceID string, wipeExternalS
 	}
 
 	deviceName := buildDeviceName(enterpriseID, deviceID)
-	req := &types.DeviceDeleteRequest{
-		Name:                deviceName,
-		WipeExternalStorage: wipeExternalStorage,
-	}
-
-	if wipeExternalStorage {
-		req.WipeDataFlags = []string{types.WipeDataFlagExternalStorage}
-	}
-
-	return ds.Delete(req)
+	return ds.Delete(deviceName)
 }
 
 // GetOperations retrieves operations for a device.
@@ -447,42 +381,26 @@ func (ds *DeviceService) CancelOperation(operationName string) error {
 
 // GetActiveDevices returns all active devices for an enterprise.
 func (ds *DeviceService) GetActiveDevices(enterpriseID string) (*types.ListResult[*androidmanagement.Device], error) {
-	req := &types.DeviceListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		State:          types.DeviceStateActive,
-	}
-
-	return ds.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return ds.List(enterpriseName, 0, "", types.DeviceStateActive, nil, "")
 }
 
 // GetCompliantDevices returns all policy-compliant devices for an enterprise.
 func (ds *DeviceService) GetCompliantDevices(enterpriseID string) (*types.ListResult[*androidmanagement.Device], error) {
 	compliant := true
-	req := &types.DeviceListRequest{
-		EnterpriseName:  buildEnterpriseName(enterpriseID),
-		PolicyCompliant: &compliant,
-	}
-
-	return ds.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return ds.List(enterpriseName, 0, "", "", &compliant, "")
 }
 
 // GetNonCompliantDevices returns all non-compliant devices for an enterprise.
 func (ds *DeviceService) GetNonCompliantDevices(enterpriseID string) (*types.ListResult[*androidmanagement.Device], error) {
 	compliant := false
-	req := &types.DeviceListRequest{
-		EnterpriseName:  buildEnterpriseName(enterpriseID),
-		PolicyCompliant: &compliant,
-	}
-
-	return ds.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return ds.List(enterpriseName, 0, "", "", &compliant, "")
 }
 
 // GetDevicesByUser returns all devices for a specific user in an enterprise.
 func (ds *DeviceService) GetDevicesByUser(enterpriseID, userName string) (*types.ListResult[*androidmanagement.Device], error) {
-	req := &types.DeviceListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-		UserName:       userName,
-	}
-
-	return ds.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return ds.List(enterpriseName, 0, "", "", nil, userName)
 }

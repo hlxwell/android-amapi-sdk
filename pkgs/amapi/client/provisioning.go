@@ -17,8 +17,8 @@ func (c *Client) ProvisioningInfo() *ProvisioningService {
 }
 
 // Get retrieves provisioning information by its resource name.
-func (ps *ProvisioningService) Get(req *types.ProvisioningInfoGetRequest) (*androidmanagement.ProvisioningInfo, error) {
-	if req == nil || req.Name == "" {
+func (ps *ProvisioningService) Get(provisioningInfoName string) (*androidmanagement.ProvisioningInfo, error) {
+	if provisioningInfoName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "provisioning info name is required")
 	}
 
@@ -26,7 +26,7 @@ func (ps *ProvisioningService) Get(req *types.ProvisioningInfoGetRequest) (*andr
 	var err error
 
 	err = ps.client.executeAPICall(func() error {
-		result, err = ps.client.service.ProvisioningInfo.Get(req.Name).Context(ps.client.ctx).Do()
+		result, err = ps.client.service.ProvisioningInfo.Get(provisioningInfoName).Context(ps.client.ctx).Do()
 		return err
 	})
 
@@ -44,11 +44,7 @@ func (ps *ProvisioningService) GetByID(provisioningInfoID string) (*androidmanag
 	}
 
 	provisioningInfoName := buildProvisioningInfoName(provisioningInfoID)
-	req := &types.ProvisioningInfoGetRequest{
-		Name: provisioningInfoName,
-	}
-
-	return ps.Get(req)
+	return ps.Get(provisioningInfoName)
 }
 
 // GetByDeviceID retrieves provisioning information by device ID.
@@ -60,11 +56,7 @@ func (ps *ProvisioningService) GetByDeviceID(deviceID string) (*androidmanagemen
 	// Build provisioning info name from device ID
 	// The exact format depends on the API specification
 	provisioningInfoName := "provisioningInfo/" + deviceID
-	req := &types.ProvisioningInfoGetRequest{
-		Name: provisioningInfoName,
-	}
-
-	return ps.Get(req)
+	return ps.Get(provisioningInfoName)
 }
 
 // GetByEnterpriseID retrieves provisioning information by enterprise ID.
@@ -76,11 +68,7 @@ func (ps *ProvisioningService) GetByEnterpriseID(enterpriseID string) (*androidm
 	// Build provisioning info name from enterprise ID
 	// The exact format depends on the API specification
 	provisioningInfoName := "provisioningInfo/" + enterpriseID
-	req := &types.ProvisioningInfoGetRequest{
-		Name: provisioningInfoName,
-	}
-
-	return ps.Get(req)
+	return ps.Get(provisioningInfoName)
 }
 
 // Helper function to build provisioning info name

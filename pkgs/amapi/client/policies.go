@@ -19,25 +19,21 @@ func (c *Client) Policies() *PolicyService {
 }
 
 // Create creates a new policy.
-func (ps *PolicyService) Create(req *types.PolicyCreateRequest) (*androidmanagement.Policy, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "policy create request is required")
-	}
-
-	if req.EnterpriseName == "" {
+func (ps *PolicyService) Create(enterpriseName, policyID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
-	if req.PolicyID == "" {
+	if policyID == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "policy ID is required")
 	}
 
-	if req.Policy == nil {
+	if policy == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "policy configuration is required")
 	}
 
 	// Validate policy
-	if err := types.ValidatePolicy(req.Policy); err != nil {
+	if err := types.ValidatePolicy(policy); err != nil {
 		return nil, err
 	}
 
@@ -46,8 +42,8 @@ func (ps *PolicyService) Create(req *types.PolicyCreateRequest) (*androidmanagem
 
 	err = ps.client.executeAPICall(func() error {
 		result, err = ps.client.service.Enterprises.Policies.Patch(
-			buildPolicyName(req.EnterpriseName, req.PolicyID),
-			req.Policy,
+			buildPolicyName(enterpriseName, policyID),
+			policy,
 		).Context(ps.client.ctx).Do()
 		return err
 	})
@@ -70,13 +66,7 @@ func (ps *PolicyService) CreateByEnterpriseID(enterpriseID, policyID string, pol
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.PolicyCreateRequest{
-		EnterpriseName: enterpriseName,
-		PolicyID:       policyID,
-		Policy:         policy,
-	}
-
-	return ps.Create(req)
+	return ps.Create(enterpriseName, policyID, policy)
 }
 
 // Get retrieves a policy by its resource name.
@@ -115,21 +105,17 @@ func (ps *PolicyService) GetByID(enterpriseID, policyID string) (*androidmanagem
 }
 
 // Update updates an existing policy.
-func (ps *PolicyService) Update(req *types.PolicyUpdateRequest) (*androidmanagement.Policy, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "policy update request is required")
-	}
-
-	if req.Name == "" {
+func (ps *PolicyService) Update(policyName string, policy *androidmanagement.Policy, updateMask []string) (*androidmanagement.Policy, error) {
+	if policyName == "" {
 		return nil, types.ErrInvalidPolicyID
 	}
 
-	if req.Policy == nil {
+	if policy == nil {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "policy configuration is required")
 	}
 
 	// Validate policy
-	if err := types.ValidatePolicy(req.Policy); err != nil {
+	if err := types.ValidatePolicy(policy); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +123,11 @@ func (ps *PolicyService) Update(req *types.PolicyUpdateRequest) (*androidmanagem
 	var err error
 
 	err = ps.client.executeAPICall(func() error {
-		call := ps.client.service.Enterprises.Policies.Patch(req.Name, req.Policy)
+		call := ps.client.service.Enterprises.Policies.Patch(policyName, policy)
 
-		if len(req.UpdateMask) > 0 {
+		if len(updateMask) > 0 {
 			// Set update mask if provided - use comma-separated string
-			maskString := strings.Join(req.UpdateMask, ",")
+			maskString := strings.Join(updateMask, ",")
 			call.UpdateMask(maskString)
 		}
 
@@ -157,7 +143,7 @@ func (ps *PolicyService) Update(req *types.PolicyUpdateRequest) (*androidmanagem
 }
 
 // UpdateByID updates a policy by enterprise ID and policy ID.
-func (ps *PolicyService) UpdateByID(enterpriseID, policyID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+func (ps *PolicyService) UpdateByID(enterpriseID, policyID string, policy *androidmanagement.Policy, updateMask []string) (*androidmanagement.Policy, error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
@@ -167,17 +153,12 @@ func (ps *PolicyService) UpdateByID(enterpriseID, policyID string, policy *andro
 	}
 
 	policyName := buildPolicyName(enterpriseID, policyID)
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, updateMask)
 }
 
 // List lists policies for an enterprise.
-func (ps *PolicyService) List(req *types.PolicyListRequest) (*types.ListResult[*androidmanagement.Policy], error) {
-	if req == nil || req.EnterpriseName == "" {
+func (ps *PolicyService) List(enterpriseName string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.Policy], error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
@@ -185,14 +166,14 @@ func (ps *PolicyService) List(req *types.PolicyListRequest) (*types.ListResult[*
 	var err error
 
 	err = ps.client.executeAPICall(func() error {
-		call := ps.client.service.Enterprises.Policies.List(req.EnterpriseName)
+		call := ps.client.service.Enterprises.Policies.List(enterpriseName)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(ps.client.ctx).Do()
@@ -214,31 +195,23 @@ func (ps *PolicyService) List(req *types.PolicyListRequest) (*types.ListResult[*
 }
 
 // ListByEnterpriseID lists policies for an enterprise by enterprise ID.
-func (ps *PolicyService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.Policy], error) {
+func (ps *PolicyService) ListByEnterpriseID(enterpriseID string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.Policy], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.PolicyListRequest{
-		EnterpriseName: enterpriseName,
-	}
-
-	if options != nil {
-		req.ListOptions = *options
-	}
-
-	return ps.List(req)
+	return ps.List(enterpriseName, pageSize, pageToken)
 }
 
 // Delete deletes a policy.
-func (ps *PolicyService) Delete(req *types.PolicyDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (ps *PolicyService) Delete(policyName string) error {
+	if policyName == "" {
 		return types.ErrInvalidPolicyID
 	}
 
 	err := ps.client.executeAPICall(func() error {
-		_, err := ps.client.service.Enterprises.Policies.Delete(req.Name).Context(ps.client.ctx).Do()
+		_, err := ps.client.service.Enterprises.Policies.Delete(policyName).Context(ps.client.ctx).Do()
 		return err
 	})
 
@@ -260,11 +233,7 @@ func (ps *PolicyService) DeleteByID(enterpriseID, policyID string) error {
 	}
 
 	policyName := buildPolicyName(enterpriseID, policyID)
-	req := &types.PolicyDeleteRequest{
-		Name: policyName,
-	}
-
-	return ps.Delete(req)
+	return ps.Delete(policyName)
 }
 
 // Clone creates a copy of an existing policy with a new ID.
@@ -294,13 +263,8 @@ func (ps *PolicyService) Clone(sourcePolicyName, targetEnterpriseID, targetPolic
 	clonedPolicy.Version = 0
 
 	// Create the new policy
-	req := &types.PolicyCreateRequest{
-		EnterpriseName: buildEnterpriseName(targetEnterpriseID),
-		PolicyID:       targetPolicyID,
-		Policy:         clonedPolicy,
-	}
-
-	return ps.Create(req)
+	enterpriseName := buildEnterpriseName(targetEnterpriseID)
+	return ps.Create(enterpriseName, targetPolicyID, clonedPolicy)
 }
 
 // AddApplication adds an application to a policy.
@@ -315,12 +279,7 @@ func (ps *PolicyService) AddApplication(policyName string, app *androidmanagemen
 	types.AddApplication(policy, app)
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // RemoveApplication removes an application from a policy.
@@ -335,12 +294,7 @@ func (ps *PolicyService) RemoveApplication(policyName, packageName string) (*and
 	types.RemoveApplication(policy, packageName)
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // SetApplicationInstallType sets the install type for an application in a policy.
@@ -368,12 +322,7 @@ func (ps *PolicyService) SetApplicationInstallType(policyName, packageName strin
 	app.InstallType = string(installType)
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // EnableSystemApp enables a system application in a policy.
@@ -410,12 +359,7 @@ func (ps *PolicyService) SetKioskMode(policyName, kioskAppPackage string) (*andr
 	types.AddApplication(policy, kioskApp)
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // SetFullyManagedMode configures a policy for fully managed device mode.
@@ -433,12 +377,7 @@ func (ps *PolicyService) SetFullyManagedMode(policyName string) (*androidmanagem
 	policy.KeyguardDisabled = false
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // SetWorkProfileMode configures a policy for work profile mode.
@@ -456,12 +395,7 @@ func (ps *PolicyService) SetWorkProfileMode(policyName string) (*androidmanageme
 	policy.KeyguardDisabled = false
 
 	// Update policy
-	req := &types.PolicyUpdateRequest{
-		Name:   policyName,
-		Policy: policy,
-	}
-
-	return ps.Update(req)
+	return ps.Update(policyName, policy, nil)
 }
 
 // GetDevicesUsingPolicy returns devices that are using a specific policy.
@@ -474,7 +408,7 @@ func (ps *PolicyService) GetDevicesUsingPolicy(policyName string) (*types.ListRe
 
 	// Get all devices for the enterprise
 	deviceService := ps.client.Devices()
-	allDevices, err := deviceService.ListByEnterpriseID(enterpriseID, nil)
+	allDevices, err := deviceService.ListByEnterpriseID(enterpriseID, 0, "", "", nil, "")
 	if err != nil {
 		return nil, err
 	}

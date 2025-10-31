@@ -19,14 +19,13 @@ func (c *Client) MigrationTokens() *MigrationService {
 }
 
 // Create creates a new migration token.
-func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*androidmanagement.MigrationToken, error) {
-	if req == nil {
-		return nil, types.NewError(types.ErrCodeInvalidInput, "migration token create request is required")
+func (ms *MigrationService) Create(enterpriseName, policyName string) (*androidmanagement.MigrationToken, error) {
+	if enterpriseName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, err
+	if policyName == "" {
+		return nil, types.NewError(types.ErrCodeInvalidInput, "policy name is required")
 	}
 
 	// Create migration token object
@@ -36,7 +35,7 @@ func (ms *MigrationService) Create(req *types.MigrationTokenCreateRequest) (*and
 	var err error
 
 	err = ms.client.executeAPICall(func() error {
-		result, err = ms.client.service.Enterprises.MigrationTokens.Create(req.EnterpriseName, token).Context(ms.client.ctx).Do()
+		result, err = ms.client.service.Enterprises.MigrationTokens.Create(enterpriseName, token).Context(ms.client.ctx).Do()
 		return err
 	})
 
@@ -60,13 +59,7 @@ func (ms *MigrationService) CreateByEnterpriseID(enterpriseID, policyID string, 
 	enterpriseName := buildEnterpriseName(enterpriseID)
 	policyName := buildPolicyName(enterpriseID, policyID)
 
-	req := &types.MigrationTokenCreateRequest{
-		EnterpriseName: enterpriseName,
-		PolicyName:     policyName,
-		Duration:       duration,
-	}
-
-	return ms.Create(req)
+	return ms.Create(enterpriseName, policyName)
 }
 
 // Get retrieves a migration token by its resource name.
@@ -105,8 +98,8 @@ func (ms *MigrationService) GetByID(enterpriseID, tokenID string) (*androidmanag
 }
 
 // List lists migration tokens for an enterprise.
-func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.ListResult[*androidmanagement.MigrationToken], error) {
-	if req == nil || req.EnterpriseName == "" {
+func (ms *MigrationService) List(enterpriseName string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.MigrationToken], error) {
+	if enterpriseName == "" {
 		return nil, types.NewError(types.ErrCodeInvalidInput, "enterprise name is required")
 	}
 
@@ -114,14 +107,14 @@ func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.L
 	var err error
 
 	err = ms.client.executeAPICall(func() error {
-		call := ms.client.service.Enterprises.MigrationTokens.List(req.EnterpriseName)
+		call := ms.client.service.Enterprises.MigrationTokens.List(enterpriseName)
 
-		if req.PageSize > 0 {
-			call.PageSize(int64(req.PageSize))
+		if pageSize > 0 {
+			call.PageSize(int64(pageSize))
 		}
 
-		if req.PageToken != "" {
-			call.PageToken(req.PageToken)
+		if pageToken != "" {
+			call.PageToken(pageToken)
 		}
 
 		result, err = call.Context(ms.client.ctx).Do()
@@ -143,27 +136,19 @@ func (ms *MigrationService) List(req *types.MigrationTokenListRequest) (*types.L
 }
 
 // ListByEnterpriseID lists migration tokens for an enterprise by enterprise ID.
-func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, options *types.ListOptions) (*types.ListResult[*androidmanagement.MigrationToken], error) {
+func (ms *MigrationService) ListByEnterpriseID(enterpriseID string, pageSize int, pageToken string) (*types.ListResult[*androidmanagement.MigrationToken], error) {
 	if err := validateEnterpriseID(enterpriseID); err != nil {
 		return nil, err
 	}
 
 	enterpriseName := buildEnterpriseName(enterpriseID)
-	req := &types.MigrationTokenListRequest{
-		EnterpriseName: enterpriseName,
-	}
-
-	if options != nil {
-		req.ListOptions = *options
-	}
-
-	return ms.List(req)
+	return ms.List(enterpriseName, pageSize, pageToken)
 }
 
 // Delete deletes a migration token.
 // Note: This method is a placeholder as the actual API method may not be available
-func (ms *MigrationService) Delete(req *types.MigrationTokenDeleteRequest) error {
-	if req == nil || req.Name == "" {
+func (ms *MigrationService) Delete(tokenName string) error {
+	if tokenName == "" {
 		return types.NewError(types.ErrCodeInvalidInput, "migration token name is required")
 	}
 
@@ -183,21 +168,14 @@ func (ms *MigrationService) DeleteByID(enterpriseID, tokenID string) error {
 	}
 
 	tokenName := buildMigrationTokenName(enterpriseID, tokenID)
-	req := &types.MigrationTokenDeleteRequest{
-		Name: tokenName,
-	}
-
-	return ms.Delete(req)
+	return ms.Delete(tokenName)
 }
 
 // GetActiveTokens returns all migration tokens for an enterprise.
 // Note: Filtering by active status is no longer supported since we use Google's native type.
 func (ms *MigrationService) GetActiveTokens(enterpriseID string) (*types.ListResult[*androidmanagement.MigrationToken], error) {
-	req := &types.MigrationTokenListRequest{
-		EnterpriseName: buildEnterpriseName(enterpriseID),
-	}
-
-	return ms.List(req)
+	enterpriseName := buildEnterpriseName(enterpriseID)
+	return ms.List(enterpriseName, 0, "")
 }
 
 
