@@ -1,27 +1,4 @@
-// Package types provides helper functions for androidmanagement types.
-//
-// 这个包提供了操作 google.golang.org/api/androidmanagement/v1 包中类型的辅助函数。
-// 由于我们直接使用 androidmanagement 包的原生类型（而不是自定义类型），
-// 所有的工具函数都是独立的函数，而不是类型的方法。
-//
-// # 使用方式
-//
-//	import "amapi-pkg/pkgs/amapi/types"
-//
-//	// 检查注册令牌状态
-//	isExpired := types.IsEnrollmentTokenExpired(token)
-//
-//	// 生成 QR 码数据
-//	qrData := types.GenerateQRCodeData(token, options)
-//
-// # 主要功能
-//
-//   - 资源 ID 提取：从资源名称中提取 ID
-//   - 策略操作：添加/移除应用、验证策略等
-//   - 令牌管理：检查过期、生成 QR 码等
-//   - 设备状态：检查设备状态、合规性等
-//
-// 更多函数请参考具体的函数文档。
+// Package types provides helpers for working with androidmanagement types.
 package types
 
 import (

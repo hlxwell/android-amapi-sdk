@@ -1,30 +1,4 @@
-// Package types provides type definitions, request/response types, and helper functions
-// for the Android Management API client.
-//
-// 这个包提供了：
-//   - 辅助函数（用于操作 androidmanagement 包的类型）
-//   - 常量定义（如错误代码、设备状态等）
-//   - 列表结果类型（用于分页查询）
-//   - 辅助类型（如 EnterpriseSignupURL, EnterpriseUpgradeURL 等）
-//
-// # 核心设计
-//
-// 本包不再定义自定义的核心类型（如 Policy、Device、Enterprise 等），
-// 而是直接使用 google.golang.org/api/androidmanagement/v1 包中的原生类型。
-// 所有工具函数都是独立函数，接受 androidmanagement 类型作为参数。
-//
-// # 使用方式
-//
-//	import "amapi-pkg/pkgs/amapi/types"
-//
-//	// 直接传递参数给客户端方法，不再使用 Request 类型
-//	enterprise, err := client.Enterprises().Create(signupToken, projectID, enterpriseToken, contactInfo)
-//
-//	// 使用辅助函数处理注册令牌
-//	isExpired := types.IsEnrollmentTokenExpired(token)
-//	qrData := types.GenerateQRCodeData(token, options)
-//
-// 更多详细信息请参考各个类型和函数的文档。
+// Package types exposes shared constants, helper structs, and utility types for the Android Management API client.
 package types
 
 import (

@@ -4,32 +4,6 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// Policy 相关类型和函数
-//
-// 注意：Policy 类型直接使用 androidmanagement.Policy，不再定义自定义类型。
-// 此文件包含操作 Policy 的辅助函数。
-//
-// 使用方式：
-//
-//	import (
-//	    "amapi-pkg/pkgs/amapi/types"
-//	    "google.golang.org/api/androidmanagement/v1"
-//	)
-//
-//		// 创建策略直接传递参数
-//	policy, err := client.Policies().Create(
-//	    "enterprises/LC00abc123",
-//	    "default-policy",
-//	    &androidmanagement.Policy{
-//	        // ... 策略配置
-//	    },
-//	)
-//
-//	// 使用辅助函数操作策略
-//	types.AddApplication(policy, app)
-//	types.RemoveApplication(policy, "com.example.app")
-//	err := types.ValidatePolicy(policy)
-
 // Policy helper functions (for androidmanagement.Policy)
 //
 // GetApplication returns the application policy for a specific package.

@@ -17,10 +17,10 @@ import (
 //	)
 //
 //		// 创建企业直接传递参数
-	//	enterprise, err := client.Enterprises().Create(signupToken, projectID, enterpriseToken, contactInfo)
+//	//	enterprise, err := client.Enterprises().Create(signupToken, projectID, enterpriseToken, contactInfo)
 //
 //	// Enterprise 类型直接使用 androidmanagement.Enterprise
-//	var enterprise *androidmanagement.Enterprise
+//	// var enterprise *androidmanagement.Enterprise
 
 // EnterpriseSignupURL represents a signup URL for enterprise creation.
 type EnterpriseSignupURL struct {

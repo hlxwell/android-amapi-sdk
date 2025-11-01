@@ -55,6 +55,92 @@
 - SDK 开发指南
 - 安全最佳实践
 
+## 🧩 架构概览
+
+下图展示了核心客户端与各业务服务之间的关系，以及每个服务负责的主要操作：
+
+```mermaid
+classDiagram
+    direction LR
+
+    class Client {
+        -ctx context.Context
+        -config *config.Config
+        -service *androidmanagement.Service
+        +Enterprises() *EnterpriseService
+        +Policies() *PolicyService
+        +Devices() *DeviceService
+        +EnrollmentTokens() *EnrollmentService
+        +MigrationTokens() *MigrationService
+        +WebApps() *WebAppService
+        +WebTokens() *WebTokenService
+    }
+
+    class EnterpriseService {
+        +Create(signupToken, projectID, enterpriseToken, contactInfo)
+        +Get(name)
+        +List(projectID, pageSize, pageToken)
+        +Update(name, primaryColor, logo, contactInfo, notifications, autoApprove, terms)
+        +Delete(name)
+        +GenerateSignupURL(projectID, callbackURL, adminEmail, displayName, locale)
+    }
+
+    class PolicyService {
+        +Create(enterpriseName, policyID, policy)
+        +Get(name)
+        +List(enterpriseName, pageSize, pageToken)
+        +Update(name, policy, updateMask)
+        +Delete(name)
+    }
+
+    class DeviceService {
+        +List(enterpriseName, pageSize, pageToken, state, compliant, user)
+        +Get(name)
+        +Lock(name, duration)
+        +Reboot(name)
+        +Reset(name)
+        +Delete(name)
+        +GetOperations(name)
+    }
+
+    class EnrollmentService {
+        +Create(enterpriseName, policyName, duration, allowPersonalUsage, oneTime, user)
+        +Get(name)
+        +List(enterpriseName, pageSize, pageToken, policyName, includeExpired)
+        +Delete(name)
+        +GenerateQRCode(name, options)
+    }
+
+    class MigrationService {
+        +List(enterpriseName, pageSize, pageToken)
+        +Get(name)
+        +Delete(name)
+    }
+
+    class WebAppService {
+        +Create(enterpriseName, startURL, icons, versionCode)
+        +Get(name)
+        +List(enterpriseName, pageSize, pageToken)
+        +Update(name, webApp, updateMask)
+        +Delete(name)
+    }
+
+    class WebTokenService {
+        +Create(enterpriseName, webToken)
+        +Get(name)
+        +List(enterpriseName, pageSize, pageToken)
+        +Delete(name)
+    }
+
+    Client --> EnterpriseService : composes
+    Client --> PolicyService : composes
+    Client --> DeviceService : composes
+    Client --> EnrollmentService : composes
+    Client --> MigrationService : composes
+    Client --> WebAppService : composes
+    Client --> WebTokenService : composes
+```
+
 ## 快速体验
 
 ### 使用命令行工具

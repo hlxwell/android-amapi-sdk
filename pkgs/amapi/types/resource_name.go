@@ -1,28 +1,4 @@
 // Package types provides unified resource name parsing utilities.
-//
-// 提供统一的资源名称解析函数，用于从 Android Management API 的资源名称中提取 ID。
-//
-// Android Management API 的资源名称格式：
-//   - Enterprise: "enterprises/{enterpriseId}"
-//   - Policy: "enterprises/{enterpriseId}/policies/{policyId}"
-//   - Device: "enterprises/{enterpriseId}/devices/{deviceId}"
-//   - EnrollmentToken: "enterprises/{enterpriseId}/enrollmentTokens/{tokenId}"
-//   - MigrationToken: "enterprises/{enterpriseId}/migrationTokens/{tokenId}"
-//   - WebApp: "enterprises/{enterpriseId}/webApps/{webAppId}"
-//   - WebToken: "enterprises/{enterpriseId}/webTokens/{tokenId}"
-//   - ProvisioningInfo: "signupUrls/{signupUrlId}" 或 "enterprises/{enterpriseId}/devices/{deviceId}/provisioningInfo"
-//
-// 使用方式：
-//
-//	import "amapi-pkg/pkgs/amapi/types"
-//
-//	// 方式 1: 使用结构体（推荐，更灵活）
-//	resourceName := types.ParseResourceNameStruct("enterprises/LC00abc123/policies/default")
-//	enterpriseID := resourceName.EnterpriseID    // "LC00abc123"
-//	policyID := resourceName.PolicyID          // "default"
-//
-//	// 方式 2: 使用统一字段提取函数
-//	enterpriseID := types.ExtractResourceField("enterprises/LC00abc123/policies/default", "EnterpriseID")
 package types
 
 import "strings"

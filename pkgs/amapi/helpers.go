@@ -6,11 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/api/androidmanagement/v1"
-
-	"amapi-pkg/pkgs/amapi/types"
 )
-
-// Helper functions for androidmanagement.Enterprise
 
 // GetEnterpriseID extracts the enterprise ID from the resource name.
 func GetEnterpriseID(enterprise *androidmanagement.Enterprise) string {
@@ -25,8 +21,6 @@ func GetEnterpriseID(enterprise *androidmanagement.Enterprise) string {
 
 	return enterprise.Name
 }
-
-// Helper functions for androidmanagement.EnrollmentToken
 
 // GetEnrollmentTokenID extracts the token ID from the resource name.
 func GetEnrollmentTokenID(token *androidmanagement.EnrollmentToken) string {
@@ -133,30 +127,6 @@ func SetEnrollmentTokenAllowPersonalUsage(token *androidmanagement.EnrollmentTok
 	}
 }
 
-// Helper functions for androidmanagement.Policy
-
-// GetPolicyID extracts the policy ID from the resource name.
-//
-// This is a convenience wrapper around types.ExtractResourceField.
-func GetPolicyID(policy *androidmanagement.Policy) string {
-	if policy == nil || policy.Name == "" {
-		return ""
-	}
-	return types.ExtractResourceField(policy.Name, "PolicyID")
-}
-
-// GetPolicyEnterpriseID extracts the enterprise ID from the policy resource name.
-//
-// This is a convenience wrapper around types.ExtractResourceField.
-func GetPolicyEnterpriseID(policy *androidmanagement.Policy) string {
-	if policy == nil || policy.Name == "" {
-		return ""
-	}
-	return types.ExtractResourceField(policy.Name, "EnterpriseID")
-}
-
-// Helper functions for androidmanagement.Device
-
 // GetDeviceID extracts the device ID from the resource name.
 func GetDeviceID(device *androidmanagement.Device) string {
 	if device == nil || device.Name == "" {
@@ -210,8 +180,6 @@ func IsDeviceActive(device *androidmanagement.Device) bool {
 	return device.State == "ACTIVE"
 }
 
-// Helper functions for parsing resource names
-
 // ParseResourceName parses a resource name and returns the type, enterprise ID, and resource ID.
 // Example: "enterprises/E123/policies/P456" -> ("policies", "E123", "P456")
 func ParseResourceName(name string) (resourceType, enterpriseID, resourceID string) {
@@ -241,7 +209,6 @@ func ParseResourceName(name string) (resourceType, enterpriseID, resourceID stri
 }
 
 // QRCodeData represents the data encoded in enrollment QR codes.
-// This is kept in helpers.go as it's a helper type for QR code generation.
 type QRCodeData struct {
 	EnrollmentToken           string                 `json:"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,omitempty"`
 	WiFiSSID                  string                 `json:"android.app.extra.PROVISIONING_WIFI_SSID,omitempty"`
