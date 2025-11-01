@@ -2,6 +2,8 @@
 package types
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"google.golang.org/api/androidmanagement/v1"
@@ -54,6 +56,19 @@ type QRCodeData struct {
 	SkipSetupWizard           bool                   `json:"android.app.extra.PROVISIONING_SKIP_SETUP_WIZARD,omitempty"`
 	LeaveAllSystemAppsEnabled bool                   `json:"android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED,omitempty"`
 	AdminExtrasBundle         map[string]interface{} `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE,omitempty"`
+}
+
+// String returns a JSON representation of the QR code data.
+func (q *QRCodeData) String() string {
+	if q == nil {
+		return "{}"
+	}
+
+	data, err := json.MarshalIndent(q, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("QRCodeData{EnrollmentToken: %s}", q.EnrollmentToken)
+	}
+	return string(data)
 }
 
 // GenerateQRCodeData generates QR code data for an enrollment token.

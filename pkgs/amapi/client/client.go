@@ -54,6 +54,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -67,6 +68,21 @@ import (
 	"amapi-pkg/pkgs/amapi/utils"
 
 	"github.com/redis/go-redis/v9"
+)
+
+// 常量定义
+const (
+	// ClientVersion 是客户端版本号
+	ClientVersion = "1.0.0"
+
+	// DefaultRetryMaxDelay 是默认的最大重试延迟时间
+	DefaultRetryMaxDelay = 30 * time.Second
+
+	// DefaultRedisTimeout 是默认的Redis连接超时时间
+	DefaultRedisTimeout = 5 * time.Second
+
+	// DefaultHealthCheckTimeout 是默认的健康检查超时时间
+	DefaultHealthCheckTimeout = 10 * time.Second
 )
 
 // Client represents the Android Management API client.
@@ -152,6 +168,11 @@ type Client struct {
 //
 //	client, err := New(cfg)
 func New(cfg *config.Config) (*Client, error) {
+	return newClientWithContext(context.Background(), cfg)
+}
+
+// newClientWithContext 是内部的客户端创建函数，支持自定义 context
+func newClientWithContext(ctx context.Context, cfg *config.Config) (*Client, error) {
 	if cfg == nil {
 		return nil, types.NewError(types.ErrCodeConfiguration, "configuration is required")
 	}
@@ -159,8 +180,6 @@ func New(cfg *config.Config) (*Client, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, types.WrapError(err, types.ErrCodeConfiguration, "invalid configuration")
 	}
-
-	ctx := context.Background()
 
 	// Create HTTP client with authentication
 	httpClient, err := createHTTPClient(ctx, cfg)
@@ -184,9 +203,11 @@ func New(cfg *config.Config) (*Client, error) {
 		})
 
 		// Test Redis connection
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		pingCtx, cancel := context.WithTimeout(context.Background(), DefaultRedisTimeout)
 		defer cancel()
-		if err := redisClient.Ping(ctx).Err(); err != nil {
+		if err := redisClient.Ping(pingCtx).Err(); err != nil {
+			// 确保在连接失败时清理 Redis 客户端资源
+			redisClient.Close()
 			return nil, types.WrapError(err, types.ErrCodeConfiguration, "failed to connect to Redis")
 		}
 	}
@@ -196,7 +217,7 @@ func New(cfg *config.Config) (*Client, error) {
 	retryConfig := utils.RetryConfig{
 		MaxAttempts: cfg.RetryAttempts,
 		BaseDelay:   cfg.RetryDelay,
-		MaxDelay:    30 * time.Second,
+		MaxDelay:    DefaultRetryMaxDelay,
 		EnableRetry: cfg.EnableRetry,
 	}
 
@@ -216,9 +237,9 @@ func New(cfg *config.Config) (*Client, error) {
 
 	// Create client info
 	clientInfo := &types.ClientInfo{
-		Version:   "1.0.0",
+		Version:   ClientVersion,
 		ProjectID: cfg.ProjectID,
-		UserAgent: fmt.Sprintf("amapi-client/1.0.0 (project=%s)", cfg.ProjectID),
+		UserAgent: fmt.Sprintf("amapi-client/%s (project=%s)", ClientVersion, cfg.ProjectID),
 		Capabilities: []string{
 			"enterprises",
 			"policies",
@@ -255,13 +276,7 @@ func New(cfg *config.Config) (*Client, error) {
 //
 //	client, err := NewWithContext(ctx, cfg)
 func NewWithContext(ctx context.Context, cfg *config.Config) (*Client, error) {
-	client, err := New(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	client.ctx = ctx
-	return client, nil
+	return newClientWithContext(ctx, cfg)
 }
 
 // createHTTPClient creates an authenticated HTTP client.
@@ -276,7 +291,7 @@ func createHTTPClient(ctx context.Context, cfg *config.Config) (*http.Client, er
 		// Read file and use CredentialsFromJSON
 		jsonData, readErr := os.ReadFile(cfg.CredentialsFile)
 		if readErr != nil {
-			return nil, fmt.Errorf("failed to read credentials file: %w", readErr)
+			return nil, types.WrapError(readErr, types.ErrCodeConfiguration, "failed to read credentials file")
 		}
 		creds, err = google.CredentialsFromJSON(ctx, jsonData, cfg.Scopes...)
 	} else {
@@ -285,7 +300,7 @@ func createHTTPClient(ctx context.Context, cfg *config.Config) (*http.Client, er
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to load credentials: %w", err)
+		return nil, types.WrapError(err, types.ErrCodeAuthentication, "failed to load credentials")
 	}
 
 	// Create OAuth2 token source
@@ -343,7 +358,7 @@ func (c *Client) Close() error {
 
 // Health checks the health of the client and API connectivity.
 func (c *Client) Health() error {
-	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.ctx, DefaultHealthCheckTimeout)
 	defer cancel()
 
 	// Try to list enterprises to test connectivity
@@ -378,9 +393,19 @@ func (c *Client) withRateLimit(operation func() error) error {
 
 // executeAPICall executes an API call with rate limiting and retry logic.
 func (c *Client) executeAPICall(operation func() error) error {
-	return c.withRateLimit(func() error {
-		return c.executeWithRetry(operation)
-	})
+	// Apply rate limiting first
+	if err := c.rateLimiter.Wait(c.ctx); err != nil {
+		return types.WrapError(err, types.ErrCodeTooManyRequests, "rate limit exceeded")
+	}
+
+	// Then apply retry logic
+	if !c.config.EnableRetry {
+		return operation()
+	}
+
+	// Generate operation ID for distributed retry coordination
+	operationID := fmt.Sprintf("%d", time.Now().UnixNano())
+	return c.retryHandler.Execute(c.ctx, operationID, operation)
 }
 
 // wrapAPIError wraps API errors with additional context.
@@ -408,6 +433,36 @@ func (c *Client) wrapAPIError(err error, operation string) error {
 }
 
 // Utility methods
+
+// validateResourceName 验证资源名称格式并返回解析后的组件
+// expectedParts 定义了期望的资源名称格式，例如 []string{"enterprises", "{enterpriseId}", "devices", "{deviceId}"}
+func validateResourceName(resourceName string, expectedParts []string, resourceType string) ([]string, error) {
+	if resourceName == "" {
+		return nil, types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+			fmt.Sprintf("empty %s name", resourceType),
+			fmt.Sprintf("expected format: %s", strings.Join(expectedParts, "/")))
+	}
+
+	components := parseResourceName(resourceName)
+	if len(components) != len(expectedParts) {
+		return nil, types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+			fmt.Sprintf("invalid %s name format", resourceType),
+			fmt.Sprintf("expected format: %s", strings.Join(expectedParts, "/")))
+	}
+
+	// 验证固定部分（非参数部分）
+	for i, expected := range expectedParts {
+		if !strings.HasPrefix(expected, "{") && !strings.HasSuffix(expected, "}") {
+			if components[i] != expected {
+				return nil, types.NewErrorWithDetails(types.ErrCodeInvalidInput,
+					fmt.Sprintf("invalid %s name format", resourceType),
+					fmt.Sprintf("expected format: %s", strings.Join(expectedParts, "/")))
+			}
+		}
+	}
+
+	return components, nil
+}
 
 // buildResourceName builds a resource name from components.
 func buildResourceName(components ...string) string {
@@ -503,70 +558,70 @@ func buildEnrollmentTokenName(enterpriseID, tokenID string) string {
 
 // parseEnterpriseName extracts the enterprise ID from an enterprise resource name.
 func parseEnterpriseName(enterpriseName string) (string, error) {
-	components := parseResourceName(enterpriseName)
-	if len(components) != 2 || components[0] != "enterprises" {
-		return "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid enterprise name format", "expected format: enterprises/{enterpriseId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}"}
+	components, err := validateResourceName(enterpriseName, expectedParts, "enterprise")
+	if err != nil {
+		return "", err
 	}
 	return components[1], nil
 }
 
 // parseDeviceName extracts enterprise and device IDs from a device resource name.
 func parseDeviceName(deviceName string) (string, string, error) {
-	components := parseResourceName(deviceName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "devices" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid device name format", "expected format: enterprises/{enterpriseId}/devices/{deviceId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "devices", "{deviceId}"}
+	components, err := validateResourceName(deviceName, expectedParts, "device")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }
 
 // parsePolicyName extracts enterprise and policy IDs from a policy resource name.
 func parsePolicyName(policyName string) (string, string, error) {
-	components := parseResourceName(policyName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "policies" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid policy name format", "expected format: enterprises/{enterpriseId}/policies/{policyId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "policies", "{policyId}"}
+	components, err := validateResourceName(policyName, expectedParts, "policy")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }
 
 // parseEnrollmentTokenName extracts enterprise and token IDs from a token resource name.
 func parseEnrollmentTokenName(tokenName string) (string, string, error) {
-	components := parseResourceName(tokenName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "enrollmentTokens" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid enrollment token name format", "expected format: enterprises/{enterpriseId}/enrollmentTokens/{tokenId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "enrollmentTokens", "{tokenId}"}
+	components, err := validateResourceName(tokenName, expectedParts, "enrollment token")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }
 
 // parseMigrationTokenName extracts enterprise and token IDs from a migration token resource name.
 func parseMigrationTokenName(tokenName string) (string, string, error) {
-	components := parseResourceName(tokenName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "migrationTokens" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid migration token name format", "expected format: enterprises/{enterpriseId}/migrationTokens/{tokenId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "migrationTokens", "{tokenId}"}
+	components, err := validateResourceName(tokenName, expectedParts, "migration token")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }
 
 // parseWebAppName extracts enterprise and web app IDs from a web app resource name.
 func parseWebAppName(webAppName string) (string, string, error) {
-	components := parseResourceName(webAppName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "webApps" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid web app name format", "expected format: enterprises/{enterpriseId}/webApps/{webAppId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "webApps", "{webAppId}"}
+	components, err := validateResourceName(webAppName, expectedParts, "web app")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }
 
 // parseWebTokenName extracts enterprise and token IDs from a web token resource name.
 func parseWebTokenName(tokenName string) (string, string, error) {
-	components := parseResourceName(tokenName)
-	if len(components) != 4 || components[0] != "enterprises" || components[2] != "webTokens" {
-		return "", "", types.NewErrorWithDetails(types.ErrCodeInvalidInput,
-			"invalid web token name format", "expected format: enterprises/{enterpriseId}/webTokens/{tokenId}")
+	expectedParts := []string{"enterprises", "{enterpriseId}", "webTokens", "{tokenId}"}
+	components, err := validateResourceName(tokenName, expectedParts, "web token")
+	if err != nil {
+		return "", "", err
 	}
 	return components[1], components[3], nil
 }

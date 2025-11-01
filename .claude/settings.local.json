@@ -9,7 +9,9 @@
       "Bash(find:*)",
       "Bash(./build/*)",
       "Bash(go test:*)",
-      "Bash(go doc:*)"
+      "Bash(go doc:*)",
+      "Bash(go vet:*)",
+      "Bash(gofmt:*)"
     ],
     "deny": [],
     "ask": []
