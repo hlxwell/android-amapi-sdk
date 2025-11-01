@@ -73,7 +73,3 @@ const (
 	EnrollmentTypeUserless     EnrollmentTokenType = "userlessDeviceProvisioning"
 	EnrollmentTypePersonalWork EnrollmentTokenType = "personalWorkDeviceProvisioning"
 )
-
-// Note: Type conversion functions removed
-// All types now use androidmanagement package types directly
-// No conversion needed between custom types and official SDK types
