@@ -363,7 +363,13 @@ func (c *Client) Health() error {
 	defer cancel()
 
 	// Try to list enterprises to test connectivity
-	_, err := c.service.Enterprises.List().Context(ctx).Do()
+	// ProjectId is required for the API call
+	if c.config.ProjectID == "" {
+		return types.NewError(types.ErrCodeConfiguration, "project ID is required for health check")
+	}
+
+	call := c.service.Enterprises.List().ProjectId(c.config.ProjectID)
+	_, err := call.Context(ctx).Do()
 	if err != nil {
 		return types.WrapError(err, types.ErrCodeServiceUnavailable, "health check failed")
 	}
