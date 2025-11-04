@@ -36,6 +36,7 @@ import (
 //	    BaseDelay:   1 * time.Second,
 //	    MaxDelay:    30 * time.Second,
 //	    EnableRetry: true,
+//	    Jitter:      true,
 //	})
 //	defer handler.Close()
 //

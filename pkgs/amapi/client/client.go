@@ -89,6 +89,7 @@ const (
 //
 // Client 提供了访问 Android Management API 的所有方法。
 // 它是线程安全的，可以在多个 goroutine 中并发使用。
+// 线程安全性来自底层的 http.Client 和 androidmanagement.Service，它们本身都是线程安全的。
 //
 // 使用 New 或 NewWithContext 创建客户端实例。
 // 在使用完毕后，务必调用 Close() 方法释放资源（包括 Redis 连接）。
