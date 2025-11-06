@@ -153,15 +153,23 @@ func (tw *TaskWorker) Stop() {
 func (tw *TaskWorker) worker(id int) {
 	defer tw.wg.Done()
 
+	ticker := time.NewTicker(tw.config.PollInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-tw.ctx.Done():
 			return
-		default:
-			// Try to dequeue a task
-			task, err := tw.queue.DequeueBlocking(tw.ctx, tw.config.PollInterval)
+		case <-ticker.C:
+			// Try to dequeue a task (non-blocking)
+			task, err := tw.queue.Dequeue(tw.ctx)
 			if err != nil {
-				// Queue is empty or timeout, continue polling
+				// Error dequeuing, continue to next poll
+				continue
+			}
+
+			if task == nil {
+				// Queue is empty, continue polling
 				continue
 			}
 
@@ -173,12 +181,15 @@ func (tw *TaskWorker) worker(id int) {
 
 // processTask processes a single task.
 func (tw *TaskWorker) processTask(ctx context.Context, task *Task) {
-	// Update task status to processing
-	tw.updateTaskStatus(ctx, task.CallbackID, "processing", nil, nil)
+	// Update task status to processing immediately
+	// Use background context to avoid cancellation during status update
+	statusCtx := context.Background()
+	tw.updateTaskStatus(statusCtx, task.CallbackID, "processing", nil, nil)
 
 	// Wait for rate limit before executing
 	if err := tw.rateLimiter.Wait(ctx); err != nil {
-		tw.updateTaskStatus(ctx, task.CallbackID, "failed", nil, fmt.Errorf("rate limit error: %w", err))
+		statusCtx := context.Background()
+		tw.updateTaskStatus(statusCtx, task.CallbackID, "failed", nil, fmt.Errorf("rate limit error: %w", err))
 		return
 	}
 
@@ -203,26 +214,30 @@ func (tw *TaskWorker) processTask(ctx context.Context, task *Task) {
 			// Wait for delay
 			select {
 			case <-ctx.Done():
-				tw.updateTaskStatus(ctx, task.CallbackID, "failed", nil, ctx.Err())
+				statusCtx := context.Background()
+				tw.updateTaskStatus(statusCtx, task.CallbackID, "failed", nil, ctx.Err())
 				return
 			case <-time.After(delay):
 				// Re-enqueue task with lower priority
 				if err := tw.queue.Enqueue(ctx, task, newPriority); err != nil {
-					tw.updateTaskStatus(ctx, task.CallbackID, "failed", nil, fmt.Errorf("failed to re-enqueue: %w", err))
+					statusCtx := context.Background()
+					tw.updateTaskStatus(statusCtx, task.CallbackID, "failed", nil, fmt.Errorf("failed to re-enqueue: %w", err))
 					return
 				}
 				// Update status to pending for retry
-				tw.updateTaskStatus(ctx, task.CallbackID, "pending", nil, nil)
+				statusCtx := context.Background()
+				tw.updateTaskStatus(statusCtx, task.CallbackID, "pending", nil, nil)
 				return
 			}
 		}
 	}
 
 	// Task completed (success or non-retryable error)
+	finalStatusCtx := context.Background()
 	if err != nil {
-		tw.updateTaskStatus(ctx, task.CallbackID, "failed", nil, err)
+		tw.updateTaskStatus(finalStatusCtx, task.CallbackID, "failed", nil, err)
 	} else {
-		tw.updateTaskStatus(ctx, task.CallbackID, "completed", result, nil)
+		tw.updateTaskStatus(finalStatusCtx, task.CallbackID, "completed", result, nil)
 	}
 }
 

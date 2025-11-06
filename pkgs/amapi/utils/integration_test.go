@@ -23,7 +23,9 @@ func setupTestRedis(t *testing.T) (*redis.Client, func()) {
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr: mr.Addr(),
+		Addr:         mr.Addr(),
+		PoolSize:     20, // Increase pool size for concurrent workers
+		MinIdleConns: 5,
 	})
 
 	// Test connection
@@ -193,7 +195,7 @@ func TestTaskWorkerIntegration(t *testing.T) {
 	// Create worker config
 	config := TaskWorkerConfig{
 		Concurrency:  2,
-		PollInterval: 200 * time.Millisecond, // Use shorter interval for faster processing
+		PollInterval: 200 * time.Millisecond, // Use shorter interval with non-blocking dequeue
 		KeyPrefix:    "test:",
 		RateLimit:    1000, // High rate limit for testing
 		Burst:        100,
@@ -214,6 +216,9 @@ func TestTaskWorkerIntegration(t *testing.T) {
 	}
 	defer worker.Stop()
 
+	// Give worker time to fully start
+	time.Sleep(100 * time.Millisecond)
+
 	// Create and enqueue task
 	queue := NewRedisPriorityQueue(client, config.KeyPrefix)
 	operation := APICallOperation{
@@ -231,11 +236,18 @@ func TestTaskWorkerIntegration(t *testing.T) {
 		t.Fatalf("Failed to enqueue task: %v", err)
 	}
 
+	// Initialize task status as pending
+	resultKey := config.KeyPrefix + "task:result:" + task.CallbackID
+	client.HSet(ctx, resultKey, "status", "pending")
+	client.HSet(ctx, resultKey, "created_at", time.Now().Format(time.RFC3339))
+	client.Expire(ctx, resultKey, 1*time.Hour)
+
 	// Give worker time to start processing and pick up the task
-	time.Sleep(1 * time.Second)
+	// Worker uses non-blocking Dequeue with PollInterval (200ms), should pick up quickly
+	time.Sleep(500 * time.Millisecond)
 
 	// Wait for task completion
-	result, err := worker.WaitForTaskResult(ctx, task.CallbackID, 15*time.Second)
+	result, err := worker.WaitForTaskResult(ctx, task.CallbackID, 10*time.Second)
 	if err != nil {
 		t.Fatalf("Failed to wait for task result: %v", err)
 	}
@@ -260,12 +272,12 @@ func TestTaskWorker429Retry(t *testing.T) {
 	// Create worker config
 	config := TaskWorkerConfig{
 		Concurrency:  1,
-		PollInterval: 1 * time.Second, // miniredis requires at least 1s
+		PollInterval: 200 * time.Millisecond, // Use shorter interval with non-blocking dequeue
 		KeyPrefix:    "test:",
 		RateLimit:    100,
 		Burst:        10,
 		MaxRetries:   3,
-		BaseDelay:    1 * time.Second, // miniredis requires at least 1s
+		BaseDelay:    500 * time.Millisecond, // Shorter delay for testing
 		MaxDelay:     2 * time.Second,
 	}
 
@@ -426,12 +438,12 @@ func TestEndToEndFlow(t *testing.T) {
 	// Setup
 	config := TaskWorkerConfig{
 		Concurrency:  3,
-		PollInterval: 1 * time.Second, // miniredis requires at least 1s
+		PollInterval: 200 * time.Millisecond, // Use shorter interval with non-blocking dequeue
 		KeyPrefix:    "test:",
 		RateLimit:    100, // 100 requests per second
 		Burst:        10,
 		MaxRetries:   3,
-		BaseDelay:    1 * time.Second, // miniredis requires at least 1s
+		BaseDelay:    500 * time.Millisecond, // Shorter delay for testing
 		MaxDelay:     2 * time.Second,
 	}
 
@@ -595,12 +607,12 @@ func TestErrorHandling(t *testing.T) {
 
 	config := TaskWorkerConfig{
 		Concurrency:  1,
-		PollInterval: 1 * time.Second, // miniredis requires at least 1s
+		PollInterval: 200 * time.Millisecond, // Use shorter interval with non-blocking dequeue
 		KeyPrefix:    "test:",
 		RateLimit:    100,
 		Burst:        10,
 		MaxRetries:   2, // Only 2 retries
-		BaseDelay:    1 * time.Second, // miniredis requires at least 1s
+		BaseDelay:    500 * time.Millisecond, // Shorter delay for testing
 		MaxDelay:     2 * time.Second,
 	}
 
