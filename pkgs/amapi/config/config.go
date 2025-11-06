@@ -218,6 +218,58 @@ type Config struct {
 	//
 	// 启用后，多个进程不会同时重试同一个失败的操作，减少重复的 API 调用。
 	UseRedisRetry bool `yaml:"use_redis_retry" json:"use_redis_retry"`
+
+	// 优先级队列配置（用于基于 Redis Priority Queue 的任务调度）
+	//
+	// 优先级队列模式将 API 调用封装为任务，按优先级放入 Redis sorted set，
+	// 由 worker 异步消费执行。执行时会应用 rate limiting 和 retry 逻辑。
+	//
+	// 使用示例：
+	//
+	//	cfg := &Config{
+	//	    ProjectID:        "your-project-id",
+	//	    CredentialsFile:  "./sa-key.json",
+	//	    RedisAddress:     "localhost:6379",
+	//	    UsePriorityQueue: true,  // 启用优先级队列模式
+	//	    QueueWorkerConcurrency: 10,  // Worker 并发数
+	//	    DefaultTaskPriority: 500,    // 默认任务优先级
+	//	}
+
+	// UsePriorityQueue 控制是否使用优先级队列模式。
+	// 如果启用，将使用 Redis Priority Queue 来管理任务执行。
+	// 默认为 false。
+	// 可通过环境变量 AMAPI_USE_PRIORITY_QUEUE 设置。
+	UsePriorityQueue bool `yaml:"use_priority_queue" json:"use_priority_queue"`
+
+	// QueueWorkerConcurrency 是优先级队列 worker 的并发数。
+	// 默认为 10。
+	// 可通过环境变量 AMAPI_QUEUE_WORKER_CONCURRENCY 设置。
+	QueueWorkerConcurrency int `yaml:"queue_worker_concurrency" json:"queue_worker_concurrency"`
+
+	// QueuePollInterval 是队列轮询间隔（当队列为空时）。
+	// 默认为 100ms。
+	// 可通过环境变量 AMAPI_QUEUE_POLL_INTERVAL 设置（如 "100ms"）。
+	QueuePollInterval time.Duration `yaml:"queue_poll_interval" json:"queue_poll_interval"`
+
+	// DefaultTaskPriority 是任务的默认优先级（0-1000，越大优先级越高）。
+	// 默认为 500。
+	// 可通过环境变量 AMAPI_DEFAULT_TASK_PRIORITY 设置。
+	DefaultTaskPriority int `yaml:"default_task_priority" json:"default_task_priority"`
+
+	// MaxQueueSize 是优先级队列的最大大小。
+	// 默认为 10000。
+	// 可通过环境变量 AMAPI_MAX_QUEUE_SIZE 设置。
+	MaxQueueSize int `yaml:"max_queue_size" json:"max_queue_size"`
+
+	// PriorityQueueRateLimit 是优先级队列模式的 rate limit（请求/秒）。
+	// 如果未设置，使用 RateLimit（转换为每秒）。
+	// 可通过环境变量 AMAPI_PRIORITY_QUEUE_RATE_LIMIT 设置。
+	PriorityQueueRateLimit int `yaml:"priority_queue_rate_limit" json:"priority_queue_rate_limit"`
+
+	// PriorityQueueBurst 是优先级队列模式的 burst 容量。
+	// 如果未设置，使用 RateBurst。
+	// 可通过环境变量 AMAPI_PRIORITY_QUEUE_BURST 设置。
+	PriorityQueueBurst int `yaml:"priority_queue_burst" json:"priority_queue_burst"`
 }
 
 // DefaultConfig 返回一个包含合理默认值的配置对象。
@@ -251,12 +303,19 @@ func DefaultConfig() *Config {
 		CacheTTL:           5 * time.Minute,
 		LogLevel:           "info",
 		EnableDebugLogging: false,
-		RateLimit:          100,
-		RateBurst:          10,
-		RedisDB:            0,
-		RedisKeyPrefix:     "amapi:",
-		UseRedisRateLimit:  false,
-		UseRedisRetry:      false,
+		RateLimit:              100,
+		RateBurst:              10,
+		RedisDB:                0,
+		RedisKeyPrefix:         "amapi:",
+		UseRedisRateLimit:      false,
+		UseRedisRetry:          false,
+		UsePriorityQueue:       false,
+		QueueWorkerConcurrency: 10,
+		QueuePollInterval:      100 * time.Millisecond,
+		DefaultTaskPriority:    500,
+		MaxQueueSize:           10000,
+		PriorityQueueRateLimit: 0, // 0 means use RateLimit
+		PriorityQueueBurst:     0, // 0 means use RateBurst
 	}
 }
 

@@ -51,11 +51,20 @@ type RedisRateLimiter struct {
 // NewRedisRateLimiter creates a new Redis-based rate limiter.
 // rateLimit is requests per minute, burst is the burst capacity.
 func NewRedisRateLimiter(client *redis.Client, keyPrefix string, rateLimit, burst int) *RedisRateLimiter {
+	return NewRedisRateLimiterWithWindow(client, keyPrefix, rateLimit, burst, 60*time.Second)
+}
+
+// NewRedisRateLimiterWithWindow creates a new Redis-based rate limiter with custom window.
+// rateLimit is requests per window, burst is the burst capacity, window is the time window.
+func NewRedisRateLimiterWithWindow(client *redis.Client, keyPrefix string, rateLimit, burst int, window time.Duration) *RedisRateLimiter {
 	if rateLimit <= 0 {
-		rateLimit = 100 // Default to 100 requests per minute
+		rateLimit = 100 // Default to 100 requests per window
 	}
 	if burst <= 0 {
 		burst = 10 // Default burst of 10
+	}
+	if window <= 0 {
+		window = 60 * time.Second // Default 1 minute window
 	}
 
 	rl := &RedisRateLimiter{
@@ -63,7 +72,7 @@ func NewRedisRateLimiter(client *redis.Client, keyPrefix string, rateLimit, burs
 		keyPrefix: keyPrefix,
 		rateLimit: rateLimit,
 		burst:     burst,
-		window:    60 * time.Second, // 1 minute window
+		window:    window,
 	}
 
 	return rl

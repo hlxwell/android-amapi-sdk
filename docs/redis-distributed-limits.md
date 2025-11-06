@@ -257,6 +257,144 @@ client, err := client.New(cfg)
 | 复杂度 | ✅ 简单 | ⚠️ 需要 Redis 服务器 |
 | 监控 | ❌ 无法跨进程监控 | ✅ 可以在 Redis 中查看统计 |
 
+## 优先级队列模式
+
+除了基本的分布式 rate limiting 和 retry 管理，还可以使用**优先级队列模式**来管理 API 调用。
+
+### 概述
+
+优先级队列模式将 API 调用封装为任务，按优先级放入 Redis sorted set，由 worker 异步消费执行。执行时会应用 rate limiting（如 1000 次/秒）和 retry 逻辑（针对 429 错误）。
+
+**主要特性：**
+- ✅ 按优先级执行任务（数字，0-1000，越大优先级越高）
+- ✅ 异步任务执行，提高吞吐量
+- ✅ 自动 rate limiting（在 worker 执行时应用）
+- ✅ 自动处理 429 错误并重试
+- ✅ 支持任务优先级调整（重试时降低优先级）
+
+### 配置
+
+```yaml
+# 启用优先级队列模式
+use_priority_queue: true
+
+# Worker 配置
+queue_worker_concurrency: 10      # Worker 并发数
+queue_poll_interval: 100ms         # 队列轮询间隔
+default_task_priority: 500         # 默认任务优先级（0-1000）
+max_queue_size: 10000              # 最大队列大小
+
+# 优先级队列的 rate limit
+priority_queue_rate_limit: 1000    # 请求/秒（如果未设置，使用 rate_limit/60）
+priority_queue_burst: 100          # Burst 容量
+```
+
+### 使用示例
+
+```go
+cfg := &config.Config{
+    ProjectID:       "your-project-id",
+    CredentialsFile: "./sa-key.json",
+
+    // Redis 配置
+    RedisAddress: "localhost:6379",
+
+    // 启用优先级队列模式
+    UsePriorityQueue: true,
+    QueueWorkerConcurrency: 10,
+    DefaultTaskPriority: 500,
+    PriorityQueueRateLimit: 1000,  // 1000 请求/秒
+}
+
+client, err := client.New(cfg)
+if err != nil {
+    log.Fatal(err)
+}
+defer client.Close()
+
+// 使用默认优先级执行 API 调用
+_, err = client.Enterprises().List(nil)
+
+// 使用指定优先级执行（高优先级）
+// 注意：需要 Client 支持优先级参数
+```
+
+### 工作原理
+
+1. **任务创建**：API 调用被封装为 Task，包含操作信息和优先级
+2. **入队**：Task 按优先级放入 Redis sorted set（score = priority）
+3. **Worker 消费**：多个 worker goroutine 并发从队列中按优先级取出任务
+4. **Rate Limiting**：Worker 执行任务前检查 rate limit（如 1000 次/秒），超过限制时等待
+5. **执行任务**：Worker 执行任务（调用 API）
+6. **处理 429**：如果返回 429 错误：
+   - 计算重试延迟（指数退避）
+   - 降低优先级（原优先级 - 50）重新入队
+   - 等待延迟后重试
+7. **存储结果**：任务执行结果存储在 Redis 中
+
+**Redis Key 结构：**
+```
+amapi:queue:priority            (Sorted Set)
+  - Score: 优先级（0-1000）
+  - Member: Task JSON 字符串
+
+amapi:task:result:{callbackID}  (Hash)
+  - status: pending/processing/completed/failed
+  - result: 结果 JSON（如果成功）
+  - error: 错误信息（如果失败）
+  - created_at: 创建时间
+  - completed_at: 完成时间
+```
+
+### 优先级策略
+
+- **默认优先级**：500
+- **高优先级任务**：700-1000（重要操作）
+- **普通任务**：400-600（常规操作）
+- **低优先级任务**：0-300（后台任务）
+- **429 重试任务**：原优先级 - 50（每次重试降低）
+
+### Rate Limiting
+
+优先级队列模式使用**滑动窗口算法**，支持每秒限制（如 1000 次/秒）：
+
+- 使用 1 秒窗口
+- Worker 执行任务前检查当前窗口内的请求数
+- 超过限制时等待，直到有配额
+- 所有 worker 共享同一个 rate limit
+
+### Retry 策略（429 错误）
+
+当请求返回 429（Too Many Requests）时：
+
+1. 检测 HTTP 429 响应
+2. 如果重试次数 < MaxRetries：
+   - 计算延迟（指数退避：baseDelay * 2^attempt）
+   - 降低优先级（原优先级 - 50）重新入队
+   - 或等待延迟后直接重试
+3. 使用 Redis 锁防止重复重试
+4. 如果重试耗尽，标记任务失败
+
+### Worker 并发控制
+
+- 使用 channel 限制并发数（semaphore pattern）
+- 支持优雅关闭（context cancellation）
+- 任务超时处理（context timeout）
+
+### 与标准模式的对比
+
+| 特性 | 标准模式 | 优先级队列模式 |
+|------|----------|----------------|
+| 执行方式 | 同步执行 | 异步执行（通过队列） |
+| 优先级支持 | ❌ | ✅ 支持任务优先级 |
+| Rate Limiting | 在入队前检查 | 在执行时检查（worker） |
+| 429 重试 | 立即重试 | 降低优先级重新入队 |
+| 吞吐量 | 受限于同步等待 | 更高（异步执行） |
+| 复杂度 | ✅ 简单 | ⚠️ 需要 worker 管理 |
+| 适用场景 | 简单场景 | 高并发、需要优先级的场景 |
+
 ## 总结
 
 使用 Redis 实现分布式 rate limiting 和 retry 管理是在多进程环境中保证 API 调用合规性的最佳实践。通过简单的配置就可以启用这些功能，而无需修改业务代码。
+
+对于需要更高吞吐量和优先级管理的场景，可以使用优先级队列模式，它提供了更灵活的任务调度和更好的并发处理能力。

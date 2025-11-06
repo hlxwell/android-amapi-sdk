@@ -33,3 +33,26 @@ enable_debug_logging: false  # 启用调试日志
 # 速率限制配置
 rate_limit: 100          # 每分钟请求限制
 rate_burst: 10           # 突发请求容量
+
+# Redis 配置（用于分布式 rate limiting 和 retry 管理）
+# 如果您的应用程序运行多个进程，可以使用 Redis 实现分布式的 rate limiting 和 retry 管理
+redis_address: "localhost:6379"    # Redis 服务器地址（格式：host:port）
+# redis_password: ""                # Redis 密码（可选）
+redis_db: 0                         # Redis 数据库编号（0-15）
+redis_key_prefix: "amapi:"          # Redis key 前缀
+
+# 分布式功能开关
+use_redis_rate_limit: false          # 是否使用 Redis 进行分布式 rate limiting
+use_redis_retry: false              # 是否使用 Redis 进行分布式 retry 管理
+
+# 优先级队列配置（用于基于 Redis Priority Queue 的任务调度）
+# 优先级队列模式将 API 调用封装为任务，按优先级放入 Redis sorted set，由 worker 异步消费执行
+use_priority_queue: false           # 是否使用优先级队列模式
+queue_worker_concurrency: 10        # Worker 并发数
+queue_poll_interval: 100ms          # 队列轮询间隔（当队列为空时）
+default_task_priority: 500         # 默认任务优先级（0-1000，越大优先级越高）
+max_queue_size: 10000              # 最大队列大小
+
+# 优先级队列的 rate limit（如果未设置，使用 rate_limit/60）
+# priority_queue_rate_limit: 1000   # 请求/秒（如 1000 次/秒）
+# priority_queue_burst: 100         # Burst 容量

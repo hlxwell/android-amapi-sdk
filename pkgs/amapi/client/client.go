@@ -58,6 +58,9 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+	"encoding/json"
+	"sync"
+
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -130,6 +133,17 @@ type Client struct {
 
 	// redisClient is the Redis client (if using Redis for distributed rate limiting/retry)
 	redisClient *redis.Client
+
+	// taskWorker is the task worker (if using priority queue mode)
+	taskWorker *utils.TaskWorker
+
+	// priorityQueue is the priority queue (if using priority queue mode)
+	priorityQueue *utils.RedisPriorityQueue
+
+	// operationCallbacks stores operation callbacks for priority queue mode
+	// Maps operationID -> operation function
+	operationCallbacks map[string]func() error
+	operationCallbacksMu sync.RWMutex
 
 	// info contains client information
 	info *types.ClientInfo
@@ -213,8 +227,12 @@ func newClientWithContext(ctx context.Context, cfg *config.Config) (*Client, err
 		}
 	}
 
-	// Create retry handler (Redis or local)
+	// Create retry handler and rate limiter
 	var retryHandler utils.RetryHandlerInterface
+	var rateLimiter utils.RateLimiterInterface
+	var taskWorker *utils.TaskWorker
+	var priorityQueue *utils.RedisPriorityQueue
+
 	retryConfig := utils.RetryConfig{
 		MaxAttempts: cfg.RetryAttempts,
 		BaseDelay:   cfg.RetryDelay,
@@ -222,18 +240,73 @@ func newClientWithContext(ctx context.Context, cfg *config.Config) (*Client, err
 		EnableRetry: cfg.EnableRetry,
 	}
 
-	if redisClient != nil && cfg.UseRedisRetry {
-		retryHandler = utils.NewRedisRetryHandler(redisClient, cfg.RedisKeyPrefix, retryConfig)
-	} else {
-		retryHandler = utils.NewRetryHandler(retryConfig)
-	}
+	// Check if priority queue mode is enabled
+	if redisClient != nil && cfg.UsePriorityQueue {
+		// Priority queue mode
+		// Determine rate limit settings
+		rateLimit := cfg.PriorityQueueRateLimit
+		if rateLimit <= 0 {
+			// Convert per-minute to per-second
+			rateLimit = cfg.RateLimit / 60
+			if rateLimit <= 0 {
+				rateLimit = 1000 // Default: 1000 requests per second
+			}
+		}
+		burst := cfg.PriorityQueueBurst
+		if burst <= 0 {
+			burst = cfg.RateBurst
+			if burst <= 0 {
+				burst = 100
+			}
+		}
 
-	// Create rate limiter (Redis or local)
-	var rateLimiter utils.RateLimiterInterface
-	if redisClient != nil && cfg.UseRedisRateLimit {
-		rateLimiter = utils.NewRedisRateLimiter(redisClient, cfg.RedisKeyPrefix, cfg.RateLimit, cfg.RateBurst)
+		// Create task worker config
+		workerConfig := utils.TaskWorkerConfig{
+			Concurrency: cfg.QueueWorkerConcurrency,
+			PollInterval: cfg.QueuePollInterval,
+			KeyPrefix:    cfg.RedisKeyPrefix,
+			RateLimit:    rateLimit,
+			Burst:        burst,
+			MaxRetries:   cfg.RetryAttempts,
+			BaseDelay:    cfg.RetryDelay,
+			MaxDelay:     DefaultRetryMaxDelay,
+		}
+
+		// Create priority queue
+		priorityQueue = utils.NewRedisPriorityQueue(redisClient, cfg.RedisKeyPrefix)
+
+		// Create task worker
+		taskWorker = utils.NewTaskWorker(redisClient, workerConfig)
+
+		// Register API call executor
+		// We'll create a closure that captures the client so it can access operation callbacks
+		// This will be set after client creation
+
+		// Start worker
+		if err := taskWorker.Start(ctx); err != nil {
+			return nil, types.WrapError(err, types.ErrCodeConfiguration, "failed to start task worker")
+		}
+
+		// Create priority queue rate limiter and retry handler
+		pqRateLimiterConfig := utils.DefaultPriorityQueueRateLimiterConfig()
+		pqRateLimiterConfig.DefaultPriority = cfg.DefaultTaskPriority
+		pqRateLimiterConfig.MaxQueueSize = int64(cfg.MaxQueueSize)
+
+		rateLimiter = utils.NewPriorityQueueRateLimiter(priorityQueue, taskWorker, pqRateLimiterConfig)
+		retryHandler = utils.NewPriorityQueueRetryHandler(priorityQueue, taskWorker, retryConfig)
 	} else {
-		rateLimiter = utils.NewRateLimiter(cfg.RateLimit, cfg.RateBurst)
+		// Standard mode (Redis or local)
+		if redisClient != nil && cfg.UseRedisRetry {
+			retryHandler = utils.NewRedisRetryHandler(redisClient, cfg.RedisKeyPrefix, retryConfig)
+		} else {
+			retryHandler = utils.NewRetryHandler(retryConfig)
+		}
+
+		if redisClient != nil && cfg.UseRedisRateLimit {
+			rateLimiter = utils.NewRedisRateLimiter(redisClient, cfg.RedisKeyPrefix, cfg.RateLimit, cfg.RateBurst)
+		} else {
+			rateLimiter = utils.NewRateLimiter(cfg.RateLimit, cfg.RateBurst)
+		}
 	}
 
 	// Create client info
@@ -252,14 +325,22 @@ func newClientWithContext(ctx context.Context, cfg *config.Config) (*Client, err
 	}
 
 	client := &Client{
-		service:      service,
-		config:       cfg,
-		ctx:          ctx,
-		httpClient:   httpClient,
-		retryHandler: retryHandler,
-		rateLimiter:  rateLimiter,
-		redisClient:  redisClient,
-		info:         clientInfo,
+		service:            service,
+		config:             cfg,
+		ctx:                ctx,
+		httpClient:         httpClient,
+		retryHandler:       retryHandler,
+		rateLimiter:        rateLimiter,
+		redisClient:        redisClient,
+		taskWorker:         taskWorker,
+		priorityQueue:      priorityQueue,
+		operationCallbacks: make(map[string]func() error),
+		info:               clientInfo,
+	}
+
+	// Register API call executor if using priority queue
+	if taskWorker != nil {
+		taskWorker.RegisterExecutor(utils.TaskTypeAPICall, client.createAPICallExecutor())
 	}
 
 	return client, nil
@@ -278,6 +359,51 @@ func newClientWithContext(ctx context.Context, cfg *config.Config) (*Client, err
 //	client, err := NewWithContext(ctx, cfg)
 func NewWithContext(ctx context.Context, cfg *config.Config) (*Client, error) {
 	return newClientWithContext(ctx, cfg)
+}
+
+// createAPICallExecutor creates an executor for API call tasks.
+// This executor handles the actual execution of API calls in priority queue mode.
+func (c *Client) createAPICallExecutor() utils.TaskExecutor {
+	return func(ctx context.Context, operation json.RawMessage) (interface{}, error) {
+		// Parse operation
+		var apiOp utils.APICallOperation
+		if err := json.Unmarshal(operation, &apiOp); err != nil {
+			return nil, fmt.Errorf("failed to parse operation: %w", err)
+		}
+
+		// Parse operation ID from parameters
+		var params map[string]string
+		if err := json.Unmarshal(apiOp.Parameters, &params); err != nil {
+			return nil, fmt.Errorf("failed to parse operation parameters: %w", err)
+		}
+
+		operationID, ok := params["operation_id"]
+		if !ok {
+			return nil, fmt.Errorf("operation_id not found in parameters")
+		}
+
+		// Get operation callback
+		c.operationCallbacksMu.RLock()
+		opCallback, exists := c.operationCallbacks[operationID]
+		c.operationCallbacksMu.RUnlock()
+
+		if !exists {
+			return nil, fmt.Errorf("operation callback not found for ID: %s", operationID)
+		}
+
+		// Execute operation
+		err := opCallback()
+		if err != nil {
+			return nil, err
+		}
+
+		// Remove callback after execution
+		c.operationCallbacksMu.Lock()
+		delete(c.operationCallbacks, operationID)
+		c.operationCallbacksMu.Unlock()
+
+		return nil, nil
+	}
 }
 
 // createHTTPClient creates an authenticated HTTP client.
@@ -328,6 +454,14 @@ func (c *Client) GetConfig() *config.Config {
 
 // Close closes the client and releases resources.
 func (c *Client) Close() error {
+	// Stop task worker if running
+	if c.taskWorker != nil {
+		c.taskWorker.Stop()
+		if err := c.taskWorker.Close(); err != nil {
+			return err
+		}
+	}
+
 	// Close rate limiter
 	if c.rateLimiter != nil {
 		if err := c.rateLimiter.Close(); err != nil {
@@ -400,7 +534,17 @@ func (c *Client) withRateLimit(operation func() error) error {
 
 // executeAPICall executes an API call with rate limiting and retry logic.
 func (c *Client) executeAPICall(operation func() error) error {
-	// Apply rate limiting first
+	return c.executeAPICallWithPriority(c.config.DefaultTaskPriority, operation)
+}
+
+// executeAPICallWithPriority executes an API call with rate limiting and retry logic, using the specified priority.
+func (c *Client) executeAPICallWithPriority(priority int, operation func() error) error {
+	// If priority queue mode is enabled, use queue-based execution
+	if c.config.UsePriorityQueue && c.priorityQueue != nil && c.taskWorker != nil {
+		return c.executeAPICallViaQueue(priority, operation)
+	}
+
+	// Standard mode: apply rate limiting first
 	if err := c.rateLimiter.Wait(c.ctx); err != nil {
 		return types.WrapError(err, types.ErrCodeTooManyRequests, "rate limit exceeded")
 	}
@@ -413,6 +557,59 @@ func (c *Client) executeAPICall(operation func() error) error {
 	// Generate operation ID for distributed retry coordination
 	operationID := fmt.Sprintf("%d", time.Now().UnixNano())
 	return c.retryHandler.Execute(c.ctx, operationID, operation)
+}
+
+// executeAPICallViaQueue executes an API call via priority queue.
+func (c *Client) executeAPICallViaQueue(priority int, operation func() error) error {
+	// Generate unique operation ID
+	operationID := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	// Store operation callback
+	c.operationCallbacksMu.Lock()
+	c.operationCallbacks[operationID] = operation
+	c.operationCallbacksMu.Unlock()
+
+	// Create API call operation
+	apiOp := utils.APICallOperation{
+		ServiceName: "client",
+		MethodName:  "execute",
+		Parameters:  []byte(fmt.Sprintf(`{"operation_id":"%s"}`, operationID)),
+	}
+
+	// Create task
+	task, err := utils.NewTask(utils.TaskTypeAPICall, priority, apiOp, c.config.RetryAttempts)
+	if err != nil {
+		c.operationCallbacksMu.Lock()
+		delete(c.operationCallbacks, operationID)
+		c.operationCallbacksMu.Unlock()
+		return types.WrapError(err, types.ErrCodeConfiguration, "failed to create task")
+	}
+
+	// Enqueue task
+	if err := c.priorityQueue.Enqueue(c.ctx, task, priority); err != nil {
+		c.operationCallbacksMu.Lock()
+		delete(c.operationCallbacks, operationID)
+		c.operationCallbacksMu.Unlock()
+		return types.WrapError(err, types.ErrCodeTooManyRequests, "failed to enqueue task")
+	}
+
+	// Wait for task completion
+	result, err := c.taskWorker.WaitForTaskResult(c.ctx, task.CallbackID, 5*time.Minute)
+	if err != nil {
+		c.operationCallbacksMu.Lock()
+		delete(c.operationCallbacks, operationID)
+		c.operationCallbacksMu.Unlock()
+		return types.WrapError(err, types.ErrCodeTimeout, "failed to wait for task result")
+	}
+
+	if result.Status == "failed" {
+		if result.Error != "" {
+			return fmt.Errorf("task failed: %s", result.Error)
+		}
+		return types.NewError(types.ErrCodeInternalServerError, "task failed with unknown error")
+	}
+
+	return nil
 }
 
 // wrapAPIError wraps API errors with additional context.
